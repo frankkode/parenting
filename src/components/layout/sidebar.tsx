@@ -17,6 +17,8 @@ import {
   Heart,
   ChevronLeft,
   X,
+  Scale,
+  Activity,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -38,20 +40,30 @@ const navItems = [
 
 const adminItems = [
   { href: "/admin/users", label: "User Management", icon: UserCog },
+  { href: "/admin/mediators", label: "Mediators", icon: Scale },
+  { href: "/admin/assessments", label: "Assessments Config", icon: ClipboardCheck },
+  { href: "/admin/analytics", label: "Platform Analytics", icon: Activity },
+  { href: "/admin/reports", label: "Admin Reports", icon: FileText },
   { href: "/admin/audit", label: "Audit Log", icon: Shield },
+];
+
+const mediatorItems = [
+  { href: "/mediator", label: "Mediator Dashboard", icon: Scale },
 ];
 
 export function Sidebar({ role, onNavClick }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
-  const isAdmin = role === "ADMIN" || role === "MEDIATOR";
+  const isAdmin = role === "ADMIN";
+  const isMediator = role === "MEDIATOR";
+  const isElevated = isAdmin || isMediator;
 
   return (
     <aside
       className={cn(
-        "h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300",
-        collapsed ? "w-16" : "w-64"
+        "h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300 flex-shrink-0",
+        collapsed ? "w-16" : "w-60 lg:w-64"
       )}
     >
       {/* Logo */}
@@ -84,6 +96,7 @@ export function Sidebar({ role, onNavClick }: SidebarProps) {
               key={item.href}
               href={item.href}
               onClick={onNavClick}
+              title={collapsed ? item.label : undefined}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                 isActive
@@ -97,15 +110,47 @@ export function Sidebar({ role, onNavClick }: SidebarProps) {
           );
         })}
 
+        {/* Mediator section */}
+        {isMediator && (
+          <>
+            <div className={cn("pt-4 pb-2", collapsed && "sr-only")}>
+              <p className="px-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                Mediator
+              </p>
+            </div>
+            {mediatorItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname.startsWith(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={onNavClick}
+                  title={collapsed ? item.label : undefined}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-emerald-50 text-emerald-700"
+                      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                  )}
+                >
+                  <Icon className="w-5 h-5 flex-shrink-0" />
+                  {!collapsed && <span>{item.label}</span>}
+                </Link>
+              );
+            })}
+          </>
+        )}
+
         {/* Admin section */}
-        {isAdmin && !collapsed && (
-          <div className="pt-4 pb-2">
+        {isElevated && (
+          <div className={cn("pt-4 pb-2", collapsed && "sr-only")}>
             <p className="px-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
               Administration
             </p>
           </div>
         )}
-        {isAdmin &&
+        {isElevated &&
           adminItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname.startsWith(item.href);
@@ -114,6 +159,7 @@ export function Sidebar({ role, onNavClick }: SidebarProps) {
                 key={item.href}
                 href={item.href}
                 onClick={onNavClick}
+                title={collapsed ? item.label : undefined}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                   isActive
@@ -133,8 +179,12 @@ export function Sidebar({ role, onNavClick }: SidebarProps) {
         <Link
           href="/settings"
           onClick={onNavClick}
+          title={collapsed ? "Settings" : undefined}
           className={cn(
-            "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+            "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+            pathname === "/settings"
+              ? "bg-emerald-50 text-emerald-700"
+              : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
           )}
         >
           <Settings className="w-5 h-5 flex-shrink-0" />
