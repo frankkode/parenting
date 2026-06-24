@@ -84,6 +84,8 @@ export default function AssessmentsPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [publishing, setPublishing] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [activeAssessment, setActiveAssessment] = useState<Assessment | null>(null);
   const [answers, setAnswers] = useState<Record<string, { value: string; score: number | null }>>({});
   const [skippedQuestions, setSkippedQuestions] = useState<Set<string>>(new Set());
@@ -207,6 +209,23 @@ export default function AssessmentsPage() {
       toast.error("Failed to publish assessment");
     } finally {
       setPublishing(null);
+    }
+  };
+
+  const handleDeleteAssessment = async (assessmentId: string) => {
+    try {
+      setDeleting(assessmentId);
+      const res = await fetch(`/api/assessments/${assessmentId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete");
+      toast.success("Assessment deleted");
+      setDeleteConfirm(null);
+      fetchAssessments();
+    } catch {
+      toast.error("Failed to delete assessment");
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -656,7 +675,49 @@ export default function AssessmentsPage() {
                                 Publish
                               </Button>
                             )}
-                            {assessment.userId === user?.id && assessment.status !== "COMPLETED" && (
+                            {isAdmin && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleStartAssessment(assessment.id)}
+                                >
+                                  Edit
+                                </Button>
+                                {deleteConfirm === assessment.id ? (
+                                  <span className="inline-flex items-center gap-1">
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => handleDeleteAssessment(assessment.id)}
+                                      disabled={deleting === assessment.id}
+                                    >
+                                      {deleting === assessment.id ? (
+                                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                      ) : null}
+                                      Confirm
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => setDeleteConfirm(null)}
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </span>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() => setDeleteConfirm(assessment.id)}
+                                  >
+                                    Delete
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                            {!isAdmin && assessment.userId === user?.id && assessment.status !== "COMPLETED" && (
                               <Button
                                 size="sm"
                                 onClick={() => handleStartAssessment(assessment.id)}

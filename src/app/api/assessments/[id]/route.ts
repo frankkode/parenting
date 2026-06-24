@@ -120,7 +120,13 @@ export async function DELETE(
 ) {
   try {
     const user = await requireAuth();
+    const currentUser = user as { id: string; role: string };
     const { id } = await params;
+
+    // Only admin/mediator can delete assessments
+    if (currentUser.role !== "ADMIN" && currentUser.role !== "MEDIATOR") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
 
     const existing = await prisma.assessment.findUnique({
       where: { id },
