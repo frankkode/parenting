@@ -83,6 +83,7 @@ export default function AssessmentsPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [publishing, setPublishing] = useState<string | null>(null);
   const [activeAssessment, setActiveAssessment] = useState<Assessment | null>(null);
   const [answers, setAnswers] = useState<Record<string, { value: string; score: number | null }>>({});
   const [saving, setSaving] = useState(false);
@@ -135,6 +136,43 @@ export default function AssessmentsPage() {
       toast.error("Failed to create assessment");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleStartAssessment = async (assessmentId: string) => {
+    try {
+      const res = await fetch(`/api/assessments/${assessmentId}`);
+      if (!res.ok) throw new Error("Failed to fetch assessment");
+      const data = await res.json();
+      setActiveAssessment(data);
+      // Pre-populate answers from existing answers
+      const existing: Record<string, { value: string; score: number | null }> = {};
+      if (data.answers) {
+        for (const ans of data.answers) {
+          existing[ans.questionId] = { value: ans.value, score: ans.score };
+        }
+      }
+      setAnswers(existing);
+    } catch {
+      toast.error("Failed to load assessment");
+    }
+  };
+
+  const handlePublishAssessment = async (assessmentId: string) => {
+    try {
+      setPublishing(assessmentId);
+      const res = await fetch(`/api/assessments/${assessmentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "IN_PROGRESS" }),
+      });
+      if (!res.ok) throw new Error("Failed to publish");
+      toast.success("Assessment published — parent can now start answering");
+      fetchAssessments();
+    } catch {
+      toast.error("Failed to publish assessment");
+    } finally {
+      setPublishing(null);
     }
   };
 
@@ -442,7 +480,7 @@ export default function AssessmentsPage() {
                               ) : (
                                 <Clock className="h-3 w-3 mr-1" />
                               )}
-                              {assessment.status.charAt(0) + assessment.status.slice(1).toLowerCase()}
+                              {assessment.status.replace(/_/g, " ").charAt(0) + assessment.status.replace(/_/g, " ").slice(1).toLowerCase()}
                             </Badge>
                           </div>
                         </CardHeader>
@@ -470,6 +508,33 @@ export default function AssessmentsPage() {
                               {assessment._count.answers} questions answered
                             </p>
                           )}
+                          {/* Action buttons */}
+                          <div className="flex items-center gap-2 mt-4 pt-3 border-t">
+                            {isAdmin && assessment.status === "PENDING" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handlePublishAssessment(assessment.id)}
+                                disabled={publishing === assessment.id}
+                              >
+                                {publishing === assessment.id ? (
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                ) : (
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                )}
+                                Publish
+                              </Button>
+                            )}
+                            {assessment.userId === user?.id && assessment.status !== "COMPLETED" && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleStartAssessment(assessment.id)}
+                              >
+                                <ClipboardCheck className="h-3 w-3 mr-1" />
+                                {assessment.status === "IN_PROGRESS" ? "Continue" : "Start"} Assessment
+                              </Button>
+                            )}
+                          </div>
                         </CardContent>
                       </Card>
                     ))

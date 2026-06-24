@@ -352,6 +352,7 @@ function AssessmentsPanel({
   parentBId?: string;
 }) {
   const [creating, setCreating] = useState(false);
+  const [publishing, setPublishing] = useState<string | null>(null);
 
   const handleCreateAssessment = async (userId: string, userName: string) => {
     try {
@@ -372,6 +373,24 @@ function AssessmentsPanel({
       toast.error("Failed to create assessment");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handlePublishAssessment = async (assessmentId: string) => {
+    try {
+      setPublishing(assessmentId);
+      const res = await fetch(`/api/assessments/${assessmentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "IN_PROGRESS" }),
+      });
+      if (!res.ok) throw new Error("Failed to publish");
+      toast.success("Assessment published");
+      window.location.reload();
+    } catch {
+      toast.error("Failed to publish assessment");
+    } finally {
+      setPublishing(null);
     }
   };
 
@@ -449,6 +468,20 @@ function AssessmentsPanel({
                 </div>
               </div>
               <div className="flex items-center gap-3">
+                {isAdmin && assessment.status === "PENDING" && (
+                  <button
+                    onClick={() => handlePublishAssessment(assessment.id)}
+                    disabled={publishing === assessment.id}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                  >
+                    {publishing === assessment.id ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-3 h-3" />
+                    )}
+                    Publish
+                  </button>
+                )}
                 <Link
                   href={`/cases/${caseId}/assessments`}
                   className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"

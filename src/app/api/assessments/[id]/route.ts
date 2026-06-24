@@ -37,6 +37,12 @@ export async function GET(
       );
     }
 
+    const currentUser = user as { id: string; role: string };
+    const isStaff = currentUser.role === "ADMIN" || currentUser.role === "MEDIATOR";
+    if (!isStaff && assessment.userId !== currentUser.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
     return NextResponse.json(assessment);
   } catch (error) {
     console.error("[ASSESSMENT_GET]", error);
@@ -53,12 +59,13 @@ export async function PATCH(
 ) {
   try {
     const user = await requireAuth();
+    const currentUser = user as { id: string; role: string };
     const { id } = await params;
     const body = await request.json();
 
     const existing = await prisma.assessment.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, userId: true, status: true },
     });
 
     if (!existing) {
@@ -66,6 +73,24 @@ export async function PATCH(
         { error: "Assessment not found" },
         { status: 404 }
       );
+    }
+
+    const isStaff = currentUser.role === "ADMIN" || currentUser.role === "MEDIATOR";
+
+    // Authorization rules:
+    // - Admin/mediator: can change status to anything (publish, etc.)
+    // - Assessment owner: can only change to COMPLETED (when submitting answers)
+    if (!isStaff) {
+      if (existing.userId !== currentUser.id) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      }
+      // Parents can only mark their own assessment as COMPLETED
+      if (body.status !== undefined && body.status !== "COMPLETED") {
+        return NextResponse.json(
+          { error: "You can only mark your assessment as completed" },
+          { status: 403 }
+        );
+      }
     }
 
     const assessment = await prisma.assessment.update({
