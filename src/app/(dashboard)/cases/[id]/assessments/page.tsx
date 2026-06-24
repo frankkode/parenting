@@ -86,6 +86,7 @@ export default function AssessmentsPage() {
   const [publishing, setPublishing] = useState<string | null>(null);
   const [activeAssessment, setActiveAssessment] = useState<Assessment | null>(null);
   const [answers, setAnswers] = useState<Record<string, { value: string; score: number | null }>>({});
+  const [skippedQuestions, setSkippedQuestions] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
 
   const fetchAssessments = useCallback(async () => {
@@ -153,9 +154,42 @@ export default function AssessmentsPage() {
         }
       }
       setAnswers(existing);
+      // Restore skipped questions from existing answers with empty values
+      const skipped = new Set<string>();
+      if (data.answers) {
+        for (const ans of data.answers) {
+          if (ans.value === "__SKIPPED__") {
+            skipped.add(ans.questionId);
+          }
+        }
+      }
+      setSkippedQuestions(skipped);
     } catch {
       toast.error("Failed to load assessment");
     }
+  };
+
+  const handleToggleSkip = (questionId: string) => {
+    setSkippedQuestions((prev) => {
+      const next = new Set(prev);
+      if (next.has(questionId)) {
+        next.delete(questionId);
+        // Also clear the answer so they can answer it fresh
+        setAnswers((a) => {
+          const copy = { ...a };
+          delete copy[questionId];
+          return copy;
+        });
+      } else {
+        next.add(questionId);
+        // Set a placeholder answer so we know it was explicitly skipped
+        setAnswers((a) => ({
+          ...a,
+          [questionId]: { value: "__SKIPPED__", score: null },
+        }));
+      }
+      return next;
+    });
   };
 
   const handlePublishAssessment = async (assessmentId: string) => {
@@ -182,7 +216,7 @@ export default function AssessmentsPage() {
   };
 
   const handleSubmitAllAnswers = async () => {
-    if (!activeAssessment) return;
+    if (!activeAssessment || !allCategoriesComplete) return;
     try {
       setSaving(true);
       for (const [questionId, answer] of Object.entries(answers)) {
@@ -199,9 +233,9 @@ export default function AssessmentsPage() {
       }
       // Complete the assessment
       const totalScore = Object.values(answers)
-        .filter((a) => a.score !== null)
+        .filter((a) => a.score !== null && a.value !== "__SKIPPED__")
         .reduce((sum, a) => sum + (a.score || 0), 0);
-      const scoredCount = Object.values(answers).filter((a) => a.score !== null).length;
+      const scoredCount = Object.values(answers).filter((a) => a.score !== null && a.value !== "__SKIPPED__").length;
       const avgScore = scoredCount > 0 ? Math.round(totalScore / scoredCount) : null;
 
       await fetch(`/api/assessments/${activeAssessment.id}`, {
@@ -245,6 +279,19 @@ export default function AssessmentsPage() {
     groupedQuestions[q.category].push(q);
   }
 
+  // Compute per-category stats
+  const categoryStats = Object.entries(groupedQuestions).map(([cat, qs]) => {
+    const total = qs.length;
+    const answered = qs.filter((q) => answers[q.id] && answers[q.id].value !== "__SKIPPED__").length;
+    const skipped = qs.filter((q) => skippedQuestions.has(q.id)).length;
+    const addressed = answered + skipped;
+    const complete = addressed === total;
+    return { cat, total, answered, skipped, addressed, complete };
+  });
+
+  const allCategoriesComplete = categoryStats.length > 0 && categoryStats.every((c) => c.complete);
+  const addressedCount = categoryStats.reduce((sum, c) => sum + c.addressed, 0);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -284,11 +331,25 @@ export default function AssessmentsPage() {
           <CardContent>
             <Tabs defaultValue={Object.keys(groupedQuestions)[0]}>
               <TabsList className="w-full flex flex-wrap h-auto gap-1">
-                {Object.entries(groupedQuestions).map(([cat, qs]) => (
-                  <TabsTrigger key={cat} value={cat} className="text-xs">
-                    {CATEGORY_LABELS[cat] || cat} ({qs.length})
-                  </TabsTrigger>
-                ))}
+                {Object.entries(groupedQuestions).map(([cat, qs]) => {
+                  const stat = categoryStats.find((s) => s.cat === cat);
+                  const isComplete = stat?.complete;
+                  const isPartial = stat && stat.addressed > 0 && !stat.complete;
+                  return (
+                    <TabsTrigger key={cat} value={cat} className="text-xs gap-1.5">
+                      <span
+                        className={`inline-block w-2 h-2 rounded-full ${
+                          isComplete
+                            ? "bg-emerald-500"
+                            : isPartial
+                            ? "bg-amber-400"
+                            : "bg-gray-300"
+                        }`}
+                      />
+                      {CATEGORY_LABELS[cat] || cat} ({qs.length})
+                    </TabsTrigger>
+                  );
+                })}
               </TabsList>
 
               {Object.entries(groupedQuestions).map(([cat, qs]) => (
@@ -396,6 +457,27 @@ export default function AssessmentsPage() {
                           ))}
                         </RadioGroup>
                       )}
+                      {/* Skip / Unskip button */}
+                      <div className="mt-3 pt-2 border-t border-gray-100">
+                        {skippedQuestions.has(q.id) ? (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleSkip(q.id)}
+                            className="text-xs text-amber-600 hover:text-amber-700 font-medium inline-flex items-center gap-1"
+                          >
+                            <AlertCircle className="w-3 h-3" />
+                            Skipped — click to answer
+                          </button>
+                        ) : !answers[q.id] ? (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleSkip(q.id)}
+                            className="text-xs text-gray-400 hover:text-gray-500 font-medium"
+                          >
+                            Skip this question
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                   ))}
 
@@ -412,11 +494,60 @@ export default function AssessmentsPage() {
               ))}
             </Tabs>
 
-            <div className="flex justify-end mt-6 pt-4 border-t">
-              <Button onClick={handleSubmitAllAnswers} disabled={saving}>
-                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-                Submit Assessment
-              </Button>
+            <div className="mt-6 pt-4 border-t space-y-4">
+              {/* Category progress summary */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-700">
+                  Progress: {addressedCount}/{questions.length} questions addressed
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {categoryStats.map((s) => (
+                    <div
+                      key={s.cat}
+                      className={`flex items-center justify-between rounded-md px-3 py-1.5 text-xs ${
+                        s.complete
+                          ? "bg-emerald-50 text-emerald-700"
+                          : s.addressed > 0
+                          ? "bg-amber-50 text-amber-700"
+                          : "bg-gray-50 text-gray-500"
+                      }`}
+                    >
+                      <span className="font-medium">{CATEGORY_LABELS[s.cat] || s.cat}</span>
+                      <span>
+                        {s.addressed}/{s.total}
+                        {s.skipped > 0 && ` (${s.skipped} skipped)`}
+                        {s.complete && " ✓"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Submit button */}
+              <div className="flex items-center justify-between">
+                {!allCategoriesComplete ? (
+                  <p className="text-sm text-amber-600 flex items-center gap-1">
+                    <AlertCircle className="w-4 h-4" />
+                    Complete all categories above before submitting
+                  </p>
+                ) : (
+                  <p className="text-sm text-emerald-600 flex items-center gap-1">
+                    <CheckCircle2 className="w-4 h-4" />
+                    All categories complete — ready to submit
+                  </p>
+                )}
+                <Button
+                  onClick={handleSubmitAllAnswers}
+                  disabled={saving || !allCategoriesComplete}
+                >
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                  )}
+                  Submit Assessment
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
