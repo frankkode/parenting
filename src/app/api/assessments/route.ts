@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
     const body = await request.json();
-    const { familyCaseId, type } = body;
+    const { familyCaseId, type, targetUserId } = body;
 
     if (!familyCaseId || !type) {
       return NextResponse.json(
@@ -75,12 +75,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const currentUser = user as { id: string; role: string };
+
+    // Only admin and mediator can create assessments
+    if (currentUser.role !== "ADMIN" && currentUser.role !== "MEDIATOR") {
+      return NextResponse.json(
+        { error: "Only administrators and mediators can create assessments" },
+        { status: 403 }
+      );
+    }
+
+    if (!targetUserId) {
+      return NextResponse.json(
+        { error: "targetUserId is required" },
+        { status: 400 }
+      );
+    }
+
+    // Verify the target user is part of the case
+    const familyCase = await prisma.familyCase.findUnique({
+      where: { id: familyCaseId },
+      select: { parentAId: true, parentBId: true },
+    });
+    if (
+      !familyCase ||
+      (familyCase.parentAId !== targetUserId &&
+        familyCase.parentBId !== targetUserId)
+    ) {
+      return NextResponse.json(
+        { error: "Target user is not a parent in this case" },
+        { status: 400 }
+      );
+    }
+
     const assessment = await prisma.assessment.create({
       data: {
         familyCaseId,
-        userId: (user as any).id,
+        userId: targetUserId,
         type,
-        status: "pending",
+        status: "PENDING",
         score: null,
       },
       include: {

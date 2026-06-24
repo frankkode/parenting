@@ -13,6 +13,7 @@ import {
   User,
   Scale,
   GraduationCap,
+  ClipboardCheck,
 } from "lucide-react";
 
 const childSchema = z.object({
@@ -59,6 +60,8 @@ export function CreateCaseForm({
     { name: string; age: number; school: string; grade: string; notes: string }[]
   >([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createAssessments, setCreateAssessments] = useState(false);
+  const [assessmentType, setAssessmentType] = useState("CO_PARENTING");
 
   const {
     register,
@@ -113,6 +116,8 @@ export function CreateCaseForm({
         body: JSON.stringify({
           ...data,
           children: children.length > 0 ? children : undefined,
+          createAssessments: isAdmin ? createAssessments : false,
+          assessmentType: isAdmin && createAssessments ? assessmentType : undefined,
         }),
       });
 
@@ -235,6 +240,50 @@ export function CreateCaseForm({
               </option>
             ))}
           </select>
+        </div>
+      )}
+
+      {/* Assessment assignment (admin only) */}
+      {isAdmin && (
+        <div className="border border-gray-200 rounded-lg p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <ClipboardCheck className="w-4 h-4 text-emerald-600" />
+            <span className="text-sm font-medium text-gray-700">
+              Initial Assessment
+            </span>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={createAssessments}
+              onChange={(e) => setCreateAssessments(e.target.checked)}
+              className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+            />
+            <span className="text-sm text-gray-600">
+              Create an initial assessment for both parents
+            </span>
+          </label>
+          {createAssessments && (
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">
+                Assessment Type
+              </label>
+              <select
+                value={assessmentType}
+                onChange={(e) => setAssessmentType(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 appearance-none bg-white"
+              >
+                <option value="CO_PARENTING">Co-Parenting Assessment</option>
+                <option value="CHILD_WELLBEING">Child Wellbeing Assessment</option>
+                <option value="PARENTING_CAPACITY">Parenting Capacity Assessment</option>
+                <option value="CONFLICT_RESOLUTION">Conflict Resolution Assessment</option>
+              </select>
+              <p className="text-xs text-gray-400 mt-1">
+                Both parents will receive this assessment to complete. Results will be
+                compared to identify gaps for mediation.
+              </p>
+            </div>
+          )}
         </div>
       )}
 

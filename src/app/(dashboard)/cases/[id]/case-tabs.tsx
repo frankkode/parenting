@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { Root, List, Trigger, Content } from "@radix-ui/react-tabs";
 import Link from "next/link";
+import { toast } from "sonner";
 import { formatDate, cn } from "@/lib/utils";
 import {
   Info,
@@ -26,6 +28,8 @@ import {
   TrendingUp,
   StickyNote,
   Users,
+  Plus,
+  Loader2,
 } from "lucide-react";
 // --- Type definitions ---
 
@@ -113,6 +117,9 @@ interface TabContent {
 interface CaseTabsProps {
   caseId: string;
   tabs: TabContent;
+  isAdmin?: boolean;
+  parentAId?: string;
+  parentBId?: string;
 }
 
 // --- Status helpers ---
@@ -333,53 +340,127 @@ function ChildrenPanel({
 
 function AssessmentsPanel({
   data,
+  caseId,
+  isAdmin,
+  parentAId,
+  parentBId,
 }: {
   data: TabContent["assessments"]["content"];
+  caseId: string;
+  isAdmin?: boolean;
+  parentAId?: string;
+  parentBId?: string;
 }) {
-  if (data.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <ClipboardCheck className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-        <p className="text-sm font-medium text-gray-900">
-          No assessments yet
-        </p>
-        <p className="text-sm text-gray-500 mt-1">
-          Assessments will appear here once they are created.
-        </p>
-      </div>
-    );
-  }
+  const [creating, setCreating] = useState(false);
+
+  const handleCreateAssessment = async (userId: string, userName: string) => {
+    try {
+      setCreating(true);
+      const res = await fetch("/api/assessments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          familyCaseId: caseId,
+          type: "CO_PARENTING",
+          targetUserId: userId,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to create");
+      toast.success(`Assessment created for ${userName}`);
+      window.location.reload();
+    } catch {
+      toast.error("Failed to create assessment");
+    } finally {
+      setCreating(false);
+    }
+  };
 
   return (
-    <div className="space-y-3">
-      {data.map((assessment) => (
-        <div
-          key={assessment.id}
-          className="border border-gray-200 rounded-lg p-4 flex items-center justify-between"
-        >
-          <div className="flex items-start gap-3">
-            <ClipboardCheck className="w-5 h-5 text-gray-400 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-gray-900">
-                {assessment.type.charAt(0) +
-                  assessment.type.slice(1).toLowerCase().replace(/_/g, " ")}
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                By {assessment.user.name ?? "Unknown"} -{" "}
-                {formatDate(assessment.createdAt)}
-              </p>
-              {assessment.score !== null && (
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Score: {assessment.score.toFixed(1)}
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {statusBadge(assessment.status)}
-          </div>
+    <div className="space-y-4">
+      {/* Admin: quick assign */}
+      {isAdmin && parentAId && parentBId && (
+        <div className="flex flex-wrap items-center gap-2 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+          <ClipboardCheck className="w-4 h-4 text-emerald-600" />
+          <span className="text-sm font-medium text-emerald-700">
+            Assign Assessment:
+          </span>
+          <button
+            onClick={() => handleCreateAssessment(parentAId, "Parent A")}
+            disabled={creating}
+            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+          >
+            {creating ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Plus className="w-3 h-3" />
+            )}
+            Parent A
+          </button>
+          <button
+            onClick={() => handleCreateAssessment(parentBId, "Parent B")}
+            disabled={creating}
+            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+          >
+            {creating ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Plus className="w-3 h-3" />
+            )}
+            Parent B
+          </button>
         </div>
-      ))}
+      )}
+
+      {data.length === 0 ? (
+        <div className="text-center py-12">
+          <ClipboardCheck className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+          <p className="text-sm font-medium text-gray-900">
+            No assessments yet
+          </p>
+          <p className="text-sm text-gray-500 mt-1">
+            {isAdmin
+              ? "Assign assessments to parents using the buttons above."
+              : "Assessments will appear here once they are created."}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {data.map((assessment) => (
+            <div
+              key={assessment.id}
+              className="border border-gray-200 rounded-lg p-4 flex items-center justify-between"
+            >
+              <div className="flex items-start gap-3">
+                <ClipboardCheck className="w-5 h-5 text-gray-400 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    {assessment.type.charAt(0) +
+                      assessment.type.slice(1).toLowerCase().replace(/_/g, " ")}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    By {assessment.user.name ?? "Unknown"} -{" "}
+                    {formatDate(assessment.createdAt)}
+                  </p>
+                  {assessment.score !== null && (
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Score: {assessment.score.toFixed(1)}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Link
+                  href={`/cases/${caseId}/assessments`}
+                  className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"
+                >
+                  View All
+                </Link>
+                {statusBadge(assessment.status)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -638,7 +719,7 @@ function LinkTabPanel({
 
 // --- Main Tabs Component ---
 
-export function CaseTabs({ caseId, tabs }: CaseTabsProps) {
+export function CaseTabs({ caseId, tabs, isAdmin, parentAId, parentBId }: CaseTabsProps) {
 
   const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
     overview: Info,
@@ -705,7 +786,13 @@ export function CaseTabs({ caseId, tabs }: CaseTabsProps) {
         </Content>
 
         <Content value="assessments">
-          <AssessmentsPanel data={tabs.assessments.content} />
+          <AssessmentsPanel
+            data={tabs.assessments.content}
+            caseId={caseId}
+            isAdmin={isAdmin}
+            parentAId={parentAId}
+            parentBId={parentBId}
+          />
         </Content>
 
         <Content value="analysis">

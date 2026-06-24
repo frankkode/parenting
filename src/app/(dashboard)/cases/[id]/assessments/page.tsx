@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
+import { useSession } from "@/lib/auth-client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -74,6 +75,9 @@ const CATEGORY_COLORS: Record<string, string> = {
 export default function AssessmentsPage() {
   const params = useParams();
   const caseId = params.id as string;
+  const session = useSession();
+  const user = session?.data?.user as { id: string; role: string } | undefined;
+  const isAdmin = user?.role === "ADMIN" || user?.role === "MEDIATOR";
 
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -220,10 +224,12 @@ export default function AssessmentsPage() {
             Complete comprehensive co-parenting assessments across 6 categories
           </p>
         </div>
-        <Button onClick={handleCreateAssessment} disabled={creating}>
-          {creating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
-          New Assessment
-        </Button>
+        {isAdmin && (
+          <Button onClick={handleCreateAssessment} disabled={creating}>
+            {creating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+            New Assessment
+          </Button>
+        )}
       </div>
 
       {activeAssessment ? (
@@ -400,10 +406,12 @@ export default function AssessmentsPage() {
                       <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
                         Start your first co-parenting assessment to get personalized insights.
                       </p>
-                      <Button onClick={handleCreateAssessment} disabled={creating}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Start Assessment
-                      </Button>
+                      {isAdmin && (
+                        <Button onClick={handleCreateAssessment} disabled={creating}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Start Assessment
+                        </Button>
+                      )}
                     </CardContent>
                   </Card>
                 ) : (

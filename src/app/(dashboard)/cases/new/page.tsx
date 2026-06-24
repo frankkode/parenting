@@ -8,7 +8,11 @@ export default async function CreateCasePage() {
   if (!session?.user) redirect("/login");
 
   const user = session.user as { id: string; name?: string; role: string };
-  const isAdmin = user.role === "ADMIN" || user.role === "MEDIATOR";
+
+  // Only admin and mediator can create cases
+  if (user.role !== "ADMIN" && user.role !== "MEDIATOR") {
+    redirect("/dashboard");
+  }
 
   // Fetch available parents and mediators
   const [parents, mediators] = await Promise.all([
@@ -39,7 +43,7 @@ export default async function CreateCasePage() {
         <CreateCaseForm
           parents={parents}
           mediators={mediators}
-          isAdmin={isAdmin}
+          isAdmin={true}
           currentUserId={user.id}
           currentUserRole={user.role}
         />

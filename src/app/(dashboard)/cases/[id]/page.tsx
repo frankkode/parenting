@@ -14,6 +14,9 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
+  const currentUser = session.user as { id: string; name?: string; role: string };
+  const isAdmin = currentUser.role === "ADMIN" || currentUser.role === "MEDIATOR";
+
   const { id } = await params;
 
   const caseItem = await prisma.familyCase.findUnique({
@@ -144,7 +147,13 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
       </div>
 
       {/* Tabs */}
-      <CaseTabs caseId={caseItem.id} tabs={tabData} />
+      <CaseTabs
+        caseId={caseItem.id}
+        tabs={tabData}
+        isAdmin={isAdmin}
+        parentAId={caseItem.parentAId}
+        parentBId={caseItem.parentBId}
+      />
     </div>
   );
 }

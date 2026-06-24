@@ -54,6 +54,14 @@ export async function POST(request: NextRequest) {
     const currentUser = user as { id: string; role: string };
     const role = currentUser.role?.toUpperCase() ?? "PARENT";
 
+    // Only admin and mediator can create cases
+    if (role !== "ADMIN" && role !== "MEDIATOR") {
+      return NextResponse.json(
+        { error: "Only administrators and mediators can create cases" },
+        { status: 403 }
+      );
+    }
+
     if (!title) {
       return NextResponse.json(
         { error: "Title is required" },
@@ -61,31 +69,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Determine parentA and parentB
-    let finalParentAId: string;
-    let finalParentBId: string;
-
-    if (role === "ADMIN" || role === "MEDIATOR") {
-      // Admins/mediators can specify both parents
-      if (!parentAId || !parentBId) {
-        return NextResponse.json(
-          { error: "Both Parent A and Parent B are required" },
-          { status: 400 }
-        );
-      }
-      finalParentAId = parentAId;
-      finalParentBId = parentBId;
-    } else {
-      // Parents creating a case are Parent A
-      finalParentAId = currentUser.id;
-      if (!parentBId) {
-        return NextResponse.json(
-          { error: "Co-parent (Parent B) is required" },
-          { status: 400 }
-        );
-      }
-      finalParentBId = parentBId;
+    if (!parentAId || !parentBId) {
+      return NextResponse.json(
+        { error: "Both Parent A and Parent B are required" },
+        { status: 400 }
+      );
     }
+
+    const finalParentAId = parentAId;
+    const finalParentBId = parentBId;
 
     // Verify both parents exist and have PARENT role
     const [parentA, parentB] = await Promise.all([
@@ -142,6 +134,29 @@ export async function POST(request: NextRequest) {
         children: true,
       },
     });
+
+    // Optionally create assessments for both parents
+    const createAssessments = body.createAssessments === true;
+    const assessmentType = body.assessmentType || "CO_PARENTING";
+
+    if (createAssessments) {
+      await prisma.assessment.createMany({
+        data: [
+          {
+            familyCaseId: familyCase.id,
+            userId: finalParentAId,
+            type: assessmentType,
+            status: "PENDING",
+          },
+          {
+            familyCaseId: familyCase.id,
+            userId: finalParentBId,
+            type: assessmentType,
+            status: "PENDING",
+          },
+        ],
+      });
+    }
 
     return NextResponse.json(familyCase, { status: 201 });
   } catch (error) {
