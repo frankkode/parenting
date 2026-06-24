@@ -1,0 +1,392 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  role          String    @default("PARENT")
+  phone         String?
+  address       String?
+  profession    String?
+  bio           String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  familyCaseParentA  FamilyCase[]       @relation("ParentA")
+  familyCaseParentB  FamilyCase[]       @relation("ParentB")
+  mediatedCases      FamilyCase[]       @relation("Mediator")
+  sentMessages        Message[]          @relation("Sender")
+  receivedMessages    Message[]          @relation("Receiver")
+  assessments         Assessment[]
+  answers             Answer[]
+  agreementsCreated   Agreement[]        @relation("CreatedBy")
+  helpRequests        HelpRequest[]      @relation("Requester")
+  helpResponses       HelpRequest[]      @relation("Responder")
+  events              CalendarEvent[]
+  sharedNotes         SharedNote[]
+  mediatorNotes       MediatorNote[]
+  notifications       Notification[]
+  auditLogs           AuditLog[]
+  growthRecords       GrowthRecord[]
+  accounts            Account[]
+  sessions            Session[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model FamilyCase {
+  id         String   @id @default(cuid())
+  title      String
+  status     String   @default("ACTIVE")
+  parentAId  String
+  parentBId  String
+  mediatorId String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  parentA        User             @relation("ParentA", fields: [parentAId], references: [id])
+  parentB        User             @relation("ParentB", fields: [parentBId], references: [id])
+  mediator       User?            @relation("Mediator", fields: [mediatorId], references: [id])
+  children       Child[]
+  assessments    Assessment[]
+  messages       Message[]
+  events         CalendarEvent[]
+  agreements     Agreement[]
+  helpRequests   HelpRequest[]
+  mediatorNotes  MediatorNote[]
+  notifications  Notification[]
+  sharedNotes    SharedNote[]
+  reports        Report[]
+  responsibilityItems ResponsibilityItem[]
+  aiRecommendations  AIRecommendation[]
+  auditLogs      AuditLog[]
+  growthRecords  GrowthRecord[]
+  childImpacts   ChildImpact[]
+  conflictAnalyses ConflictAnalysis[]
+}
+
+model Child {
+  id           String   @id @default(cuid())
+  familyCaseId String
+  name         String
+  age          Int
+  school       String?
+  grade        String?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  familyCase   FamilyCase @relation(fields: [familyCaseId], references: [id], onDelete: Cascade)
+  childImpacts ChildImpact[]
+}
+
+model Assessment {
+  id           String    @id @default(cuid())
+  familyCaseId String
+  userId       String
+  type         String    @default("CO_PARENTING")
+  status       String    @default("IN_PROGRESS")
+  score        Float?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  familyCase   FamilyCase @relation(fields: [familyCaseId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id])
+  answers      Answer[]
+}
+
+model Question {
+  id          String   @id @default(cuid())
+  text        String
+  category    String
+  subcategory String?
+  type        String
+  options     String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  answers   Answer[]
+}
+
+model Answer {
+  id           String   @id @default(cuid())
+  assessmentId String
+  questionId   String
+  userId       String
+  value        String
+  score        Float?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  question     Question   @relation(fields: [questionId], references: [id])
+  user         User       @relation(fields: [userId], references: [id])
+
+  @@unique([assessmentId, questionId])
+}
+
+model Message {
+  id            String   @id @default(cuid())
+  familyCaseId  String
+  senderId      String
+  recipientId   String?
+  subject       String?
+  content       String
+  type          String   @default("MESSAGE")
+  attachments   String?
+  isRead        Boolean  @default(false)
+  hasConflict   Boolean  @default(false)
+  conflictScore Float?
+  createdAt     DateTime @default(now())
+
+  familyCase    FamilyCase @relation(fields: [familyCaseId], references: [id], onDelete: Cascade)
+  sender        User       @relation("Sender", fields: [senderId], references: [id])
+  recipient     User?      @relation("Receiver", fields: [recipientId], references: [id])
+}
+
+model CalendarEvent {
+  id           String   @id @default(cuid())
+  familyCaseId String
+  userId       String
+  title        String
+  description  String?
+  startDate    DateTime
+  endDate      DateTime
+  type         String
+  recurring    String?
+  recurringEnd DateTime?
+  color        String?  @default("#3B82F6")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  familyCase   FamilyCase @relation(fields: [familyCaseId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id])
+}
+
+model Agreement {
+  id           String    @id @default(cuid())
+  familyCaseId String
+  title        String
+  description  String?
+  type         String
+  status       String    @default("DRAFT")
+  content      String
+  version      Int       @default(1)
+  createdById  String
+  acceptedById String?
+  acceptedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  familyCase   FamilyCase @relation(fields: [familyCaseId], references: [id], onDelete: Cascade)
+  createdBy    User       @relation("CreatedBy", fields: [createdById], references: [id])
+  versions     AgreementVersion[]
+}
+
+model AgreementVersion {
+  id          String   @id @default(cuid())
+  agreementId String
+  version     Int
+  content     String
+  changedById String
+  changedAt   DateTime @default(now())
+
+  agreement   Agreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+}
+
+model HelpRequest {
+  id           String    @id @default(cuid())
+  familyCaseId String
+  requesterId  String
+  responderId  String?
+  title        String
+  description  String?
+  type         String
+  status       String    @default("OPEN")
+  urgency      String    @default("NORMAL")
+  responseNote String?
+  acceptedAt   DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  familyCase   FamilyCase @relation(fields: [familyCaseId], references: [id], onDelete: Cascade)
+  requester    User       @relation("Requester", fields: [requesterId], references: [id])
+  responder    User?      @relation("Responder", fields: [responderId], references: [id])
+}
+
+model MediatorNote {
+  id           String   @id @default(cuid())
+  familyCaseId String
+  mediatorId   String
+  content      String
+  type         String   @default("NOTE")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  familyCase   FamilyCase @relation(fields: [familyCaseId], references: [id], onDelete: Cascade)
+  mediator     User       @relation(fields: [mediatorId], references: [id])
+}
+
+model SharedNote {
+  id           String   @id @default(cuid())
+  familyCaseId String
+  userId       String
+  title        String
+  content      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  familyCase   FamilyCase @relation(fields: [familyCaseId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id])
+}
+
+model Report {
+  id            String   @id @default(cuid())
+  familyCaseId  String
+  generatedById String
+  type          String
+  content       String
+  createdAt     DateTime @default(now())
+
+  familyCase    FamilyCase @relation(fields: [familyCaseId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  caseId    String?
+  title     String
+  message   String
+  type      String
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  case_     FamilyCase? @relation(fields: [caseId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  caseId    String?
+  action    String
+  details   String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  user      User       @relation(fields: [userId], references: [id])
+  case_     FamilyCase? @relation(fields: [caseId], references: [id])
+}
+
+model ResponsibilityItem {
+  id           String   @id @default(cuid())
+  familyCaseId String
+  title        String
+  category     String
+  parentAScore Int      @default(0)
+  parentBScore Int      @default(0)
+  recommended  String?
+  status       String   @default("UNASSIGNED")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  familyCase   FamilyCase @relation(fields: [familyCaseId], references: [id], onDelete: Cascade)
+}
+
+model AIRecommendation {
+  id           String   @id @default(cuid())
+  familyCaseId String
+  type         String
+  content      String
+  context      String?
+  createdAt    DateTime @default(now())
+
+  familyCase   FamilyCase @relation(fields: [familyCaseId], references: [id], onDelete: Cascade)
+}
+
+model GrowthRecord {
+  id           String   @id @default(cuid())
+  userId       String
+  familyCaseId String
+  category     String
+  metric       String
+  score        Float
+  notes        String?
+  recordedAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  user         User       @relation(fields: [userId], references: [id])
+  familyCase   FamilyCase @relation(fields: [familyCaseId], references: [id], onDelete: Cascade)
+}
+
+model ChildImpact {
+  id           String   @id @default(cuid())
+  familyCaseId String
+  childId      String?
+  category     String
+  score        Float
+  notes        String?
+  assessedAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  familyCase   FamilyCase @relation(fields: [familyCaseId], references: [id], onDelete: Cascade)
+  child        Child?     @relation(fields: [childId], references: [id])
+}
+
+model ConflictAnalysis {
+  id           String   @id @default(cuid())
+  familyCaseId String
+  category     String
+  score        Float
+  details      String?
+  createdAt    DateTime @default(now())
+
+  familyCase   FamilyCase @relation(fields: [familyCaseId], references: [id], onDelete: Cascade)
+}

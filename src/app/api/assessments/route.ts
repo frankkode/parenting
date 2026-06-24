@@ -1,0 +1,100 @@
+import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth-helpers";
+import { prisma } from "@/lib/prisma";
+
+export async function GET(request: NextRequest) {
+  try {
+    const user = await requireAuth();
+    const { searchParams } = new URL(request.url);
+    const caseId = searchParams.get("caseId");
+    const userIdParam = searchParams.get("userId");
+    const type = searchParams.get("type");
+    const status = searchParams.get("status");
+
+    const where: any = {};
+
+    if (caseId) where.familyCaseId = caseId;
+    if (userIdParam) where.userId = userIdParam;
+    if (type) where.type = type;
+    if (status) where.status = status;
+
+    const role = (user as any).id;
+    if (role !== "admin" && caseId) {
+      const familyCase = await prisma.familyCase.findUnique({
+        where: { id: caseId },
+        select: { parentAId: true, parentBId: true, mediatorId: true },
+      });
+      if (familyCase) {
+        const userId = (user as any).id;
+        if (
+          familyCase.parentAId !== userId &&
+          familyCase.parentBId !== userId &&
+          familyCase.mediatorId !== userId
+        ) {
+          where.userId = userId;
+        }
+      }
+    }
+
+    const assessments = await prisma.assessment.findMany({
+      where,
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, image: true },
+        },
+        familyCase: {
+          select: { id: true, title: true },
+        },
+        _count: {
+          select: { answers: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return NextResponse.json(assessments);
+  } catch (error) {
+    console.error("[ASSESSMENTS_GET]", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const user = await requireAuth();
+    const body = await request.json();
+    const { familyCaseId, type } = body;
+
+    if (!familyCaseId || !type) {
+      return NextResponse.json(
+        { error: "familyCaseId and type are required" },
+        { status: 400 }
+      );
+    }
+
+    const assessment = await prisma.assessment.create({
+      data: {
+        familyCaseId,
+        userId: (user as any).id,
+        type,
+        status: "pending",
+        score: null,
+      },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        familyCase: { select: { id: true, title: true } },
+      },
+    });
+
+    return NextResponse.json(assessment, { status: 201 });
+  } catch (error) {
+    console.error("[ASSESSMENTS_POST]", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
