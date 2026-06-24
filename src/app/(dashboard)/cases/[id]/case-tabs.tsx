@@ -740,15 +740,21 @@ export function CaseTabs({ caseId, tabs, isAdmin, parentAId, parentBId }: CaseTa
   const tabList = [
     { key: "overview", ...tabs.overview },
     { key: "children", ...tabs.children },
-    { key: "assessments", ...tabs.assessments },
-    { key: "analysis", ...tabs.assessments, label: "Analysis" },
-    { key: "comparison", ...tabs.assessments, label: "Comparison" },
-    { key: "responsibilities", ...tabs.assessments, label: "Responsibilities" },
-    { key: "childImpact", ...tabs.assessments, label: "Child Impact" },
-    { key: "growth", ...tabs.assessments, label: "Growth" },
+    { key: "assessments", ...tabs.assessments, adminOnly: false },
+    ...(isAdmin
+      ? [
+          { key: "analysis" as const, ...tabs.assessments, label: "Analysis" },
+          { key: "comparison" as const, ...tabs.assessments, label: "Comparison" },
+          { key: "responsibilities" as const, ...tabs.assessments, label: "Responsibilities" },
+          { key: "childImpact" as const, ...tabs.assessments, label: "Child Impact" },
+          { key: "growth" as const, ...tabs.assessments, label: "Growth" },
+        ]
+      : []),
     { key: "calendar", ...tabs.calendar },
     { key: "messages", ...tabs.messages },
-    { key: "notes", ...tabs.assessments, label: "Notes" },
+    ...(isAdmin
+      ? [{ key: "notes" as const, ...tabs.assessments, label: "Notes" }]
+      : []),
     { key: "agreements", ...tabs.agreements },
     { key: "helpRequests", ...tabs.helpRequests },
   ] as const;
@@ -795,50 +801,60 @@ export function CaseTabs({ caseId, tabs, isAdmin, parentAId, parentBId }: CaseTa
           />
         </Content>
 
-        <Content value="analysis">
-          <LinkTabPanel
-            icon={BarChart3}
-            title="Case Analysis"
-            description="Comprehensive analysis of communication, agreements, and progress"
-            href={`/cases/${caseId}/analysis`}
-          />
-        </Content>
+        {isAdmin && (
+          <Content value="analysis">
+            <LinkTabPanel
+              icon={BarChart3}
+              title="Case Analysis"
+              description="Comprehensive analysis of communication, agreements, and progress"
+              href={`/cases/${caseId}/analysis`}
+            />
+          </Content>
+        )}
 
-        <Content value="comparison">
-          <LinkTabPanel
-            icon={Users}
-            title="Parent Comparison"
-            description="Side-by-side comparison of parent assessments with charts and gap analysis"
-            href={`/cases/${caseId}/comparison`}
-          />
-        </Content>
+        {isAdmin && (
+          <Content value="comparison">
+            <LinkTabPanel
+              icon={Users}
+              title="Parent Comparison"
+              description="Side-by-side comparison of parent assessments with charts and gap analysis"
+              href={`/cases/${caseId}/comparison`}
+            />
+          </Content>
+        )}
 
-        <Content value="responsibilities">
-          <LinkTabPanel
-            icon={Target}
-            title="Responsibilities"
-            description="Track and manage parenting task distribution"
-            href={`/cases/${caseId}/responsibilities`}
-          />
-        </Content>
+        {isAdmin && (
+          <Content value="responsibilities">
+            <LinkTabPanel
+              icon={Target}
+              title="Responsibilities"
+              description="Track and manage parenting task distribution"
+              href={`/cases/${caseId}/responsibilities`}
+            />
+          </Content>
+        )}
 
-        <Content value="childImpact">
-          <LinkTabPanel
-            icon={Heart}
-            title="Child Impact Assessment"
-            description="Evaluate how arrangements affect each child"
-            href={`/cases/${caseId}/child-impact`}
-          />
-        </Content>
+        {isAdmin && (
+          <Content value="childImpact">
+            <LinkTabPanel
+              icon={Heart}
+              title="Child Impact Assessment"
+              description="Evaluate how arrangements affect each child"
+              href={`/cases/${caseId}/child-impact`}
+            />
+          </Content>
+        )}
 
-        <Content value="growth">
-          <LinkTabPanel
-            icon={TrendingUp}
-            title="Parent Growth Tracking"
-            description="Track co-parenting skill development over time"
-            href={`/cases/${caseId}/growth`}
-          />
-        </Content>
+        {isAdmin && (
+          <Content value="growth">
+            <LinkTabPanel
+              icon={TrendingUp}
+              title="Parent Growth Tracking"
+              description="Track co-parenting skill development over time"
+              href={`/cases/${caseId}/growth`}
+            />
+          </Content>
+        )}
 
         <Content value="calendar">
           <CalendarPanel data={tabs.calendar.content} caseId={caseId} />
@@ -848,14 +864,16 @@ export function CaseTabs({ caseId, tabs, isAdmin, parentAId, parentBId }: CaseTa
           <MessagesPanel data={tabs.messages.content} />
         </Content>
 
-        <Content value="notes">
-          <LinkTabPanel
-            icon={StickyNote}
-            title="Shared Notes"
-            description="Collaborative notes visible to all case participants"
-            href={`/cases/${caseId}/notes`}
-          />
-        </Content>
+        {isAdmin && (
+          <Content value="notes">
+            <LinkTabPanel
+              icon={StickyNote}
+              title="Shared Notes"
+              description="Collaborative notes visible to all case participants"
+              href={`/cases/${caseId}/notes`}
+            />
+          </Content>
+        )}
 
         <Content value="agreements">
           <AgreementsPanel data={tabs.agreements.content} />

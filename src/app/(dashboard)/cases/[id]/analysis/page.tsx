@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -93,7 +94,19 @@ interface ConflictAnalysisData {
 
 export default function AnalysisPage() {
   const params = useParams();
+  const router = useRouter();
   const caseId = params.id as string;
+
+  const { data: session, status } = useSession();
+  const user = session?.user as { role: string } | undefined;
+  const isAdmin = user?.role === "ADMIN" || user?.role === "MEDIATOR";
+
+  // Redirect non-admin users
+  useEffect(() => {
+    if (status === "authenticated" && !isAdmin) {
+      router.push("/dashboard");
+    }
+  }, [status, isAdmin, router]);
 
   const [data, setData] = useState<AnalysisData | null>(null);
   const [conflictData, setConflictData] = useState<ConflictAnalysisData | null>(null);
@@ -125,7 +138,15 @@ export default function AnalysisPage() {
     fetchAnalysis();
   }, [fetchAnalysis]);
 
-  if (loading) {
+  if (loading || status === "loading") {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

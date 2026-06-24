@@ -4,7 +4,11 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth();
+    const user = await requireAuth();
+    const currentUser = user as { id: string; role: string };
+    if (currentUser.role !== "ADMIN" && currentUser.role !== "MEDIATOR") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
     const { searchParams } = new URL(request.url);
     const caseId = searchParams.get("caseId");
 

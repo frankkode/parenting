@@ -28,6 +28,9 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
       children: true,
       assessments: {
         orderBy: { createdAt: "desc" },
+        where: isAdmin
+          ? undefined
+          : { userId: currentUser.id },
         include: {
           user: { select: { name: true } },
         },
@@ -64,6 +67,17 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
 
   if (!caseItem) {
     notFound();
+  }
+
+  // Verify parent users are participants of this case
+  if (!isAdmin) {
+    const isParticipant =
+      caseItem.parentAId === currentUser.id ||
+      caseItem.parentBId === currentUser.id ||
+      caseItem.mediatorId === currentUser.id;
+    if (!isParticipant) {
+      redirect("/dashboard");
+    }
   }
 
   const statusColors: Record<string, string> = {

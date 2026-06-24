@@ -5,6 +5,10 @@ import { prisma } from "@/lib/prisma";
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const currentUser = user as { id: string; role: string };
+    if (currentUser.role !== "ADMIN" && currentUser.role !== "MEDIATOR") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
     const { searchParams } = new URL(request.url);
     const caseId = searchParams.get("caseId");
     const category = searchParams.get("category");
@@ -49,6 +53,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const currentUser = user as { id: string; role: string };
+    if (currentUser.role !== "ADMIN" && currentUser.role !== "MEDIATOR") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
     const body = await request.json();
     const { familyCaseId, title, category, parentAScore, parentBScore, recommended } = body;
 
@@ -84,6 +92,10 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const currentUser = user as { id: string; role: string };
+    if (currentUser.role !== "ADMIN" && currentUser.role !== "MEDIATOR") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
     const body = await request.json();
     const { id, status, parentAScore, parentBScore, recommended } = body;
 

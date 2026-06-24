@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   BarChart,
   Bar,
@@ -65,11 +66,23 @@ interface ComparisonData {
 
 export default function ComparisonPage() {
   const params = useParams();
+  const router = useRouter();
   const caseId = params.id as string;
+
+  const { data: session, status } = useSession();
+  const user = session?.user as { role: string } | undefined;
+  const isAdmin = user?.role === "ADMIN" || user?.role === "MEDIATOR";
 
   const [data, setData] = useState<ComparisonData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Redirect non-admin users
+  useEffect(() => {
+    if (status === "authenticated" && !isAdmin) {
+      router.push("/dashboard");
+    }
+  }, [status, isAdmin, router]);
 
   const fetchComparison = useCallback(async () => {
     try {
@@ -91,7 +104,15 @@ export default function ComparisonPage() {
     fetchComparison();
   }, [fetchComparison]);
 
-  if (loading) {
+  if (loading || status === "loading") {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

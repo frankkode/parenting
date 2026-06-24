@@ -8,6 +8,11 @@ export async function GET(
 ) {
   try {
     const user = await requireAuth();
+    const currentUser = user as { id: string; role: string };
+    const isStaff = currentUser.role === "ADMIN" || currentUser.role === "MEDIATOR";
+    if (!isStaff) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
     const { caseId } = await params;
 
     const familyCase = await prisma.familyCase.findUnique({

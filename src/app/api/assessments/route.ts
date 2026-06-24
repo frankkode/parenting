@@ -18,22 +18,12 @@ export async function GET(request: NextRequest) {
     if (type) where.type = type;
     if (status) where.status = status;
 
-    const role = (user as any).id;
-    if (role !== "admin" && caseId) {
-      const familyCase = await prisma.familyCase.findUnique({
-        where: { id: caseId },
-        select: { parentAId: true, parentBId: true, mediatorId: true },
-      });
-      if (familyCase) {
-        const userId = (user as any).id;
-        if (
-          familyCase.parentAId !== userId &&
-          familyCase.parentBId !== userId &&
-          familyCase.mediatorId !== userId
-        ) {
-          where.userId = userId;
-        }
-      }
+    const currentUser = user as { id: string; role: string };
+    const isStaff = currentUser.role === "ADMIN" || currentUser.role === "MEDIATOR";
+
+    // Parents can only see their own assessments
+    if (!isStaff) {
+      where.userId = currentUser.id;
     }
 
     const assessments = await prisma.assessment.findMany({

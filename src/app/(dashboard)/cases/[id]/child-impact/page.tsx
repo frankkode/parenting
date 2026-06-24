@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -62,7 +63,19 @@ const RISK_COLORS: Record<string, string> = {
 
 export default function ChildImpactPage() {
   const params = useParams();
+  const router = useRouter();
   const caseId = params.id as string;
+
+  const { data: session, status } = useSession();
+  const user = session?.user as { role: string } | undefined;
+  const isAdmin = user?.role === "ADMIN" || user?.role === "MEDIATOR";
+
+  // Redirect non-admin users
+  useEffect(() => {
+    if (status === "authenticated" && !isAdmin) {
+      router.push("/dashboard");
+    }
+  }, [status, isAdmin, router]);
 
   const [impacts, setImpacts] = useState<ChildImpactData[]>([]);
   const [summary, setSummary] = useState<Record<string, ImpactSummary>>({});
@@ -139,7 +152,15 @@ export default function ChildImpactPage() {
     }
   };
 
-  if (loading) {
+  if (loading || status === "loading") {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
