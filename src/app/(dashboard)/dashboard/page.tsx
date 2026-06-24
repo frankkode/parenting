@@ -97,15 +97,21 @@ export default async function DashboardPage() {
     },
   ];
 
+  const isAdmin = user.role === "ADMIN" || user.role === "MEDIATOR";
+
   const quickActions = [
-    {
-      label: "Create New Case",
-      description: "Start a new family case",
-      icon: Plus,
-      href: "/cases/new",
-      color: "text-emerald-600",
-      bg: "bg-emerald-50",
-    },
+    ...(isAdmin
+      ? [
+          {
+            label: "Create New Case" as const,
+            description: "Start a new family case",
+            icon: Plus,
+            href: "/cases/new",
+            color: "text-emerald-600",
+            bg: "bg-emerald-50",
+          },
+        ]
+      : []),
     {
       label: "Send Message",
       description: "Communicate with co-parent",

@@ -16,6 +16,9 @@ export default async function CasesPage({ searchParams }: CasesPageProps) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
+  const user = session.user as { id: string; name?: string; role: string };
+  const isAdmin = user.role === "ADMIN" || user.role === "MEDIATOR";
+
   const params = await searchParams;
   const statusFilter = params.status;
   const searchQuery = params.q;
@@ -60,13 +63,15 @@ export default async function CasesPage({ searchParams }: CasesPageProps) {
             Manage and view all family cases.
           </p>
         </div>
-        <Link
-          href="/cases/new"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Create Case
-        </Link>
+        {isAdmin && (
+          <Link
+            href="/cases/new"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Create Case
+          </Link>
+        )}
       </div>
 
       {/* Search & Filters */}
@@ -172,7 +177,7 @@ export default async function CasesPage({ searchParams }: CasesPageProps) {
                 ? "Try adjusting your search or filter."
                 : "Get started by creating your first case."}
             </p>
-            {!searchQuery && !statusFilter && (
+            {!searchQuery && !statusFilter && isAdmin && (
               <Link
                 href="/cases/new"
                 className="inline-flex items-center gap-1.5 mt-4 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors"
