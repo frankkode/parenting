@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -24,6 +25,8 @@ import {
   AlertCircle, TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
+
+const STORAGE_PREFIX = "assessment_answers_";
 
 interface Question {
   id: string;
@@ -148,21 +151,45 @@ export default function AssessmentsPage() {
       if (!res.ok) throw new Error("Failed to fetch assessment");
       const data = await res.json();
       setActiveAssessment(data);
-      // Pre-populate answers from existing answers
+
+      // Start from server answers
       const existing: Record<string, { value: string; score: number | null }> = {};
       if (data.answers) {
         for (const ans of data.answers) {
           existing[ans.questionId] = { value: ans.value, score: ans.score };
         }
       }
-      setAnswers(existing);
-      // Restore skipped questions from existing answers with empty values
-      const skipped = new Set<string>();
-      if (data.answers) {
-        for (const ans of data.answers) {
-          if (ans.value === "__SKIPPED__") {
-            skipped.add(ans.questionId);
+
+      // Merge in localStorage answers (more recent than server)
+      try {
+        const stored = localStorage.getItem(STORAGE_PREFIX + assessmentId);
+        if (stored) {
+          const parsed = JSON.parse(stored) as Record<string, { value: string; score: number | null }>;
+          for (const [qId, ans] of Object.entries(parsed)) {
+            existing[qId] = ans;
           }
+        }
+      } catch { /* ignore corrupt localStorage */ }
+
+      // Initialize unanswered SLIDER questions to default of 5
+      for (const q of questions) {
+        if (q.type === "SLIDER" && !existing[q.id]) {
+          existing[q.id] = { value: "5", score: 5 };
+        }
+      }
+
+      setAnswers(existing);
+
+      // Persist to localStorage
+      try {
+        localStorage.setItem(STORAGE_PREFIX + assessmentId, JSON.stringify(existing));
+      } catch { /* quota exceeded */ }
+
+      // Restore skipped questions
+      const skipped = new Set<string>();
+      for (const [qId, ans] of Object.entries(existing)) {
+        if (ans.value === "__SKIPPED__") {
+          skipped.add(qId);
         }
       }
       setSkippedQuestions(skipped);
@@ -176,19 +203,19 @@ export default function AssessmentsPage() {
       const next = new Set(prev);
       if (next.has(questionId)) {
         next.delete(questionId);
-        // Also clear the answer so they can answer it fresh
         setAnswers((a) => {
           const copy = { ...a };
           delete copy[questionId];
+          try { localStorage.setItem(STORAGE_PREFIX + activeAssessment!.id, JSON.stringify(copy)); } catch {}
           return copy;
         });
       } else {
         next.add(questionId);
-        // Set a placeholder answer so we know it was explicitly skipped
-        setAnswers((a) => ({
-          ...a,
-          [questionId]: { value: "__SKIPPED__", score: null },
-        }));
+        setAnswers((a) => {
+          const updated = { ...a, [questionId]: { value: "__SKIPPED__", score: null } };
+          try { localStorage.setItem(STORAGE_PREFIX + activeAssessment!.id, JSON.stringify(updated)); } catch {}
+          return updated;
+        });
       }
       return next;
     });
@@ -231,7 +258,20 @@ export default function AssessmentsPage() {
 
   const handleSaveAnswer = async (questionId: string, value: string, score: number | null) => {
     if (!activeAssessment) return;
-    setAnswers((prev) => ({ ...prev, [questionId]: { value, score } }));
+    setAnswers((prev) => {
+      const updated = { ...prev, [questionId]: { value, score } };
+      // Persist to localStorage so answers survive refreshes
+      try {
+        localStorage.setItem(STORAGE_PREFIX + activeAssessment.id, JSON.stringify(updated));
+      } catch { /* quota exceeded */ }
+      // Also auto-save to API in background
+      fetch("/api/answers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assessmentId: activeAssessment.id, questionId, value, score }),
+      }).catch(() => { /* ignore network errors on autosave */ });
+      return updated;
+    });
   };
 
   const handleSubmitAllAnswers = async () => {
@@ -264,8 +304,10 @@ export default function AssessmentsPage() {
       });
 
       toast.success("Assessment completed");
+      try { localStorage.removeItem(STORAGE_PREFIX + activeAssessment.id); } catch {}
       setActiveAssessment(null);
       setAnswers({});
+      setSkippedQuestions(new Set());
       fetchAssessments();
     } catch {
       toast.error("Failed to save answers");
@@ -449,6 +491,59 @@ export default function AssessmentsPage() {
                             </div>
                           ))}
                         </RadioGroup>
+                      ) : q.type === "SELECT" ? (
+                        <Select
+                          value={answers[q.id]?.value ?? ""}
+                          onValueChange={(val) =>
+                            handleSaveAnswer(q.id, val, null)
+                          }
+                        >
+                          <SelectTrigger className="w-full max-w-xs">
+                            <SelectValue placeholder="Select an option..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(q.options || []).map((opt) => (
+                              <SelectItem key={opt} value={opt}>
+                                {opt}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : q.type === "MULTI" ? (
+                        <div className="flex flex-wrap gap-3">
+                          {(q.options || []).map((opt) => {
+                            // Parse stored multi-value (comma-separated or JSON array)
+                            const raw = answers[q.id]?.value ?? "";
+                            let selected: string[] = [];
+                            try {
+                              selected = raw ? (raw.startsWith("[") ? JSON.parse(raw) : raw.split(",").map((s: string) => s.trim())) : [];
+                            } catch { selected = raw ? raw.split(",").map((s: string) => s.trim()) : []; }
+                            const isChecked = selected.includes(opt);
+                            return (
+                              <div
+                                key={opt}
+                                className="flex items-center space-x-2"
+                              >
+                                <Checkbox
+                                  id={`${q.id}-${opt}`}
+                                  checked={isChecked}
+                                  onCheckedChange={(checked) => {
+                                    const next = checked
+                                      ? [...selected, opt]
+                                      : selected.filter((s) => s !== opt);
+                                    handleSaveAnswer(q.id, JSON.stringify(next), null);
+                                  }}
+                                />
+                                <Label
+                                  htmlFor={`${q.id}-${opt}`}
+                                  className="text-sm cursor-pointer"
+                                >
+                                  {opt}
+                                </Label>
+                              </div>
+                            );
+                          })}
+                        </div>
                       ) : (
                         <RadioGroup
                           value={answers[q.id]?.value ?? ""}
