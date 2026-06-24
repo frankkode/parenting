@@ -16,10 +16,12 @@ export default async function AssessmentsPage() {
   if (!session?.user) redirect("/login");
 
   const user = session.user as { id: string; role: string };
+  const isAdmin = user.role === "ADMIN" || user.role === "MEDIATOR";
 
   const assessments = await prisma.assessment.findMany({
     take: 50,
     orderBy: { updatedAt: "desc" },
+    where: isAdmin ? undefined : { userId: user.id },
     include: {
       user: { select: { id: true, name: true, email: true } },
       familyCase: { select: { id: true, title: true } },

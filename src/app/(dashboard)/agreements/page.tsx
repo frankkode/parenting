@@ -34,10 +34,16 @@ export default async function AgreementsPage() {
   if (!session?.user) redirect("/login");
 
   const user = session.user as { id: string; role: string };
+  const isAdmin = user.role === "ADMIN" || user.role === "MEDIATOR";
+
+  const caseWhere = isAdmin ? {} : {
+    OR: [{ parentAId: user.id }, { parentBId: user.id }, { mediatorId: user.id }],
+  };
 
   const agreements = await prisma.agreement.findMany({
     take: 50,
     orderBy: { updatedAt: "desc" },
+    where: isAdmin ? undefined : { familyCase: caseWhere },
     include: {
       createdBy: { select: { id: true, name: true } },
       familyCase: { select: { id: true, title: true } },

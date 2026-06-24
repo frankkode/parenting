@@ -88,6 +88,9 @@ export function Sidebar({ role, onNavClick }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
+          // Hide Cases from parents — they access case context via dashboard
+          if (item.href === "/cases" && !isElevated) return null;
+
           const Icon = item.icon;
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/");

@@ -25,15 +25,36 @@ export default async function CasesPage({ searchParams }: CasesPageProps) {
 
   // Build where clause
   const where: Record<string, unknown> = {};
+
+  // Non-admin users can only see cases they're part of
+  if (!isAdmin) {
+    where.OR = [
+      { parentAId: user.id },
+      { parentBId: user.id },
+      { mediatorId: user.id },
+    ];
+  }
+
   if (statusFilter && STATUS_OPTIONS.includes(statusFilter as typeof STATUS_OPTIONS[number])) {
     where.status = statusFilter;
   }
   if (searchQuery) {
-    where.OR = [
+    // Merge search query with existing OR for non-admin users
+    const searchOR = [
       { title: { contains: searchQuery } },
       { parentA: { name: { contains: searchQuery } } },
       { parentB: { name: { contains: searchQuery } } },
     ];
+    if (where.OR) {
+      // For non-admin: must satisfy both participant check AND search
+      where.AND = [
+        { OR: where.OR as any },
+        { OR: searchOR },
+      ];
+      delete where.OR;
+    } else {
+      where.OR = searchOR;
+    }
   }
 
   const cases = await prisma.familyCase.findMany({

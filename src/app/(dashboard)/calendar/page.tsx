@@ -20,6 +20,13 @@ export default async function CalendarPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
+  const user = session.user as { id: string; role: string };
+  const isAdmin = user.role === "ADMIN" || user.role === "MEDIATOR";
+
+  const caseWhere = isAdmin ? {} : {
+    OR: [{ parentAId: user.id }, { parentBId: user.id }, { mediatorId: user.id }],
+  };
+
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -27,9 +34,14 @@ export default async function CalendarPage() {
   const events = await prisma.calendarEvent.findMany({
     orderBy: { startDate: "asc" },
     where: {
-      OR: [
-        { startDate: { gte: startOfMonth, lte: endOfMonth } },
-        { startDate: { gte: now } },
+      AND: [
+        {
+          OR: [
+            { startDate: { gte: startOfMonth, lte: endOfMonth } },
+            { startDate: { gte: now } },
+          ],
+        },
+        ...(isAdmin ? [] : [{ familyCase: caseWhere }]),
       ],
     },
     include: {

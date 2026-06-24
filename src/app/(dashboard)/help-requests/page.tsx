@@ -38,10 +38,18 @@ export default async function HelpRequestsPage() {
   if (!session?.user) redirect("/login");
 
   const user = session.user as { id: string; role: string };
+  const isAdmin = user.role === "ADMIN" || user.role === "MEDIATOR";
+
+  const caseWhere = isAdmin ? {} : {
+    OR: [{ parentAId: user.id }, { parentBId: user.id }, { mediatorId: user.id }],
+  };
 
   const requests = await prisma.helpRequest.findMany({
     take: 50,
     orderBy: { createdAt: "desc" },
+    where: isAdmin ? undefined : {
+      OR: [{ requesterId: user.id }, { familyCase: caseWhere }],
+    },
     include: {
       requester: { select: { id: true, name: true, email: true } },
       responder: { select: { id: true, name: true } },

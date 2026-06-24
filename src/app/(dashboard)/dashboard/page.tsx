@@ -20,24 +20,37 @@ export default async function DashboardPage() {
   if (!session?.user) redirect("/login");
 
   const user = session.user as { id: string; name?: string; role: string };
+  const isAdmin = user.role === "ADMIN" || user.role === "MEDIATOR";
 
-  // Fetch dashboard stats
+  // Scope: admins see all, parents see only their own data
+  const caseWhere = isAdmin ? {} : {
+    OR: [{ parentAId: user.id }, { parentBId: user.id }, { mediatorId: user.id }],
+  };
+
+  // Fetch dashboard stats (scoped to user)
   const activeCases = await prisma.familyCase.count({
-    where: { status: "active" },
+    where: { status: "ACTIVE", ...caseWhere },
   });
 
   const pendingAssessments = await prisma.assessment.count({
-    where: { status: "pending" },
+    where: {
+      status: { in: ["PENDING", "IN_PROGRESS"] },
+      ...(isAdmin ? {} : { userId: user.id }),
+    },
   });
 
   const upcomingEvents = await prisma.calendarEvent.count({
     where: {
       startDate: { gte: new Date() },
+      ...(isAdmin ? {} : { familyCase: caseWhere }),
     },
   });
 
   const activeAgreements = await prisma.agreement.count({
-    where: { status: "active" },
+    where: {
+      status: "ACTIVE",
+      ...(isAdmin ? {} : { familyCase: caseWhere }),
+    },
   });
 
   const recentMessages = await prisma.message.findMany({
@@ -56,6 +69,7 @@ export default async function DashboardPage() {
     orderBy: { startDate: "asc" },
     where: {
       startDate: { gte: new Date() },
+      ...(isAdmin ? {} : { familyCase: caseWhere }),
     },
     include: {
       user: { select: { name: true } },
@@ -96,8 +110,6 @@ export default async function DashboardPage() {
       link: "/agreements",
     },
   ];
-
-  const isAdmin = user.role === "ADMIN" || user.role === "MEDIATOR";
 
   const quickActions = [
     ...(isAdmin
