@@ -102,7 +102,18 @@ export default async function AdminDashboardPage() {
       ? Math.round((resolvedCases / totalCases) * 100)
       : 0;
 
-  const avgAgreementScore = completedAssessments > 0 ? Math.round(Math.random() * 30 + 60) : 0;
+  // Average score from completed assessments (real data)
+  const assessmentScores = await prisma.assessment.findMany({
+    where: { status: "COMPLETED", score: { not: null } },
+    select: { score: true },
+  });
+  const avgAgreementScore =
+    assessmentScores.length > 0
+      ? Math.round(
+          assessmentScores.reduce((sum, a) => sum + (a.score || 0), 0) /
+            assessmentScores.length
+        )
+      : 0;
 
   // Build role counts
   const roleCounts: Record<string, number> = {};
@@ -115,6 +126,29 @@ export default async function AdminDashboardPage() {
   caseStatusCounts.forEach((s) => {
     statusCounts[s.status] = s._count.id;
   });
+
+  const months = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+
+  // Group monthly case data by month
+  const monthlyBuckets: Record<string, number> = {};
+  for (const c of monthlyCaseData) {
+    const key = `${c.createdAt.getFullYear()}-${c.createdAt.getMonth()}`;
+    monthlyBuckets[key] = (monthlyBuckets[key] || 0) + 1;
+  }
+  const monthlyChartData = Object.entries(monthlyBuckets)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, count]) => {
+      const [year, month] = key.split("-");
+      return {
+        label: `${months[parseInt(month)]} ${year.slice(2)}`,
+        count,
+      };
+    });
+
+  const maxMonthly = Math.max(...monthlyChartData.map((d) => d.count), 1);
 
   const analyticsCards = [
     {
@@ -355,6 +389,46 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
 
+      {/* Monthly Case Trend */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <h3 className="text-base font-semibold text-gray-900 mb-4">
+          Monthly New Cases
+          {avgAgreementScore > 0 && (
+            <span className="text-sm font-normal text-gray-500 ml-2">
+              &middot; Average Assessment Score: {avgAgreementScore}/100
+            </span>
+          )}
+        </h3>
+        {monthlyChartData.length > 0 ? (
+          <div className="flex items-end gap-2 h-40">
+            {monthlyChartData.map((d) => (
+              <div
+                key={d.label}
+                className="flex-1 flex flex-col items-center gap-1 min-w-0"
+              >
+                <span className="text-xs font-medium text-gray-700">
+                  {d.count}
+                </span>
+                <div
+                  className="w-full bg-blue-500 rounded-t-md transition-all hover:bg-blue-600"
+                  style={{
+                    height: `${Math.max((d.count / maxMonthly) * 100, 4)}%`,
+                  }}
+                />
+                <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                  {d.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-6">
+            <BarChart3 className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+            <p className="text-sm text-gray-500">No cases created in the last 6 months</p>
+          </div>
+        )}
+      </div>
+
       {/* Recent Activity Feed */}
       <div className="bg-white rounded-xl border border-gray-200">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
@@ -363,7 +437,7 @@ export default async function AdminDashboardPage() {
             Recent Activity
           </h2>
           <Link
-            href="#"
+            href="/admin/audit"
             className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
           >
             View all <ArrowRight className="w-3 h-3" />
