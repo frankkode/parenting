@@ -574,7 +574,7 @@ export default function AssessmentsPage() {
                             </div>
                           ))}
                         </RadioGroup>
-                      ) : q.type === "SELECT" ? (
+                      ) : q.type === "SELECT" || q.type === "SINGLE_CHOICE" ? (
                         <Select
                           value={answers[q.id]?.value ?? ""}
                           onValueChange={(val) =>
@@ -592,7 +592,7 @@ export default function AssessmentsPage() {
                             ))}
                           </SelectContent>
                         </Select>
-                      ) : q.type === "MULTI" ? (
+                      ) : q.type === "MULTI" || q.type === "MULTIPLE_CHOICE" ? (
                         <div className="flex flex-wrap gap-3">
                           {(q.options || []).map((opt) => {
                             // Parse stored multi-value (comma-separated or JSON array)

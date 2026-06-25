@@ -27,8 +27,8 @@ type QuestionType =
   | "SLIDER"
   | "TEXT"
   | "BOOLEAN"
-  | "SINGLE_CHOICE"
-  | "MULTIPLE_CHOICE";
+  | "SELECT"
+  | "MULTI";
 
 interface Question {
   id: string;
@@ -58,8 +58,8 @@ const QUESTION_TYPES: { value: QuestionType; label: string }[] = [
   { value: "SLIDER", label: "Rating (0-10 Slider)" },
   { value: "BOOLEAN", label: "Yes/No" },
   { value: "TEXT", label: "Open Text" },
-  { value: "SINGLE_CHOICE", label: "Single Choice" },
-  { value: "MULTIPLE_CHOICE", label: "Multiple Choice" },
+  { value: "SELECT", label: "Single Choice (Dropdown)" },
+  { value: "MULTI", label: "Multiple Choice (Checkboxes)" },
 ];
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -345,7 +345,7 @@ export default function AdminAssessmentsPage() {
       return;
     }
     if (
-      (formType === "SINGLE_CHOICE" || formType === "MULTIPLE_CHOICE") &&
+      (formType === "SELECT" || formType === "MULTI") &&
       !formOptions.trim()
     ) {
       toast.error("Please enter options for choice questions");
@@ -356,7 +356,7 @@ export default function AdminAssessmentsPage() {
 
     try {
       const optionsArray =
-        formType === "SINGLE_CHOICE" || formType === "MULTIPLE_CHOICE"
+        formType === "SELECT" || formType === "MULTI"
           ? formOptions.split("\n").filter((o) => o.trim())
           : null;
 
@@ -441,8 +441,8 @@ export default function AdminAssessmentsPage() {
         return (
           <div className="h-8 bg-gray-50 rounded border border-gray-200" />
         );
-      case "SINGLE_CHOICE":
-      case "MULTIPLE_CHOICE":
+      case "SELECT":
+      case "MULTI":
         return (
           <div className="flex flex-wrap gap-1 text-sm text-gray-500">
             {(options || formOptions
@@ -1061,8 +1061,8 @@ export default function AdminAssessmentsPage() {
               </div>
 
               {/* Options for Choice questions */}
-              {(formType === "SINGLE_CHOICE" ||
-                formType === "MULTIPLE_CHOICE") && (
+              {(formType === "SELECT" ||
+                formType === "MULTI") && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Options (one per line)

@@ -122,7 +122,11 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
     }
 
-    await prisma.question.delete({ where: { id } });
+    // Delete related answers first to avoid FK constraint errors
+    await prisma.$transaction([
+      prisma.answer.deleteMany({ where: { questionId: id } }),
+      prisma.question.delete({ where: { id } }),
+    ]);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[QUESTIONS_DELETE]", error);
