@@ -2,6 +2,45 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 
+export async function DELETE(request: NextRequest) {
+  try {
+    const user = await requireAuth();
+    const { searchParams } = new URL(request.url);
+    const answerId = searchParams.get("answerId");
+
+    if (!answerId) {
+      return NextResponse.json(
+        { error: "answerId is required" },
+        { status: 400 }
+      );
+    }
+
+    // Only admin/mediator or the answer owner can delete
+    const existing = await prisma.answer.findUnique({
+      where: { id: answerId },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Answer not found" }, { status: 404 });
+    }
+
+    const isStaff =
+      (user as { role: string }).role === "ADMIN" ||
+      (user as { role: string }).role === "MEDIATOR";
+
+    if (!isStaff && existing.userId !== (user as { id: string }).id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    await prisma.answer.delete({ where: { id: answerId } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("[ANSWERS_DELETE]", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();

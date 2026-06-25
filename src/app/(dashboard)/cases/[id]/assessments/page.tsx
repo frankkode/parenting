@@ -274,6 +274,80 @@ export default function AssessmentsPage() {
     });
   };
 
+  // Functional updater for MULTI checkboxes — avoids stale closure on rapid clicks
+  const handleMultiChange = (questionId: string, opt: string, add: boolean) => {
+    if (!activeAssessment) return;
+    setAnswers((prev) => {
+      const raw = prev[questionId]?.value ?? "";
+      let selected: string[] = [];
+      try {
+        selected = raw
+          ? raw.startsWith("[")
+            ? JSON.parse(raw)
+            : raw.split(",").map((s: string) => s.trim())
+          : [];
+      } catch {
+        selected = raw ? raw.split(",").map((s: string) => s.trim()) : [];
+      }
+      const next = add
+        ? [...selected.filter((s) => s !== opt), opt]
+        : selected.filter((s) => s !== opt);
+      const value = JSON.stringify(next);
+      const updated = { ...prev, [questionId]: { value, score: null } };
+      try {
+        localStorage.setItem(STORAGE_PREFIX + activeAssessment.id, JSON.stringify(updated));
+      } catch { /* quota exceeded */ }
+      fetch("/api/answers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assessmentId: activeAssessment.id, questionId, value, score: null }),
+      }).catch(() => {});
+      return updated;
+    });
+  };
+
+  // Admin/mediator: delete a single answer
+  const handleDeleteAnswer = async (questionId: string) => {
+    if (!activeAssessment || !isAdmin) return;
+    // Find the answer ID to delete
+    const answerId = activeAssessment.answers?.find(
+      (a) => a.questionId === questionId
+    )?.id;
+    if (!answerId) {
+      // No server-side answer yet; just clear from local state
+      setAnswers((prev) => {
+        const copy = { ...prev };
+        delete copy[questionId];
+        try { localStorage.setItem(STORAGE_PREFIX + activeAssessment.id, JSON.stringify(copy)); } catch {}
+        return copy;
+      });
+      setSkippedQuestions((prev) => {
+        const next = new Set(prev);
+        next.delete(questionId);
+        return next;
+      });
+      return;
+    }
+    try {
+      const res = await fetch(`/api/answers?answerId=${answerId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete answer");
+      setAnswers((prev) => {
+        const copy = { ...prev };
+        delete copy[questionId];
+        try { localStorage.setItem(STORAGE_PREFIX + activeAssessment.id, JSON.stringify(copy)); } catch {}
+        return copy;
+      });
+      setSkippedQuestions((prev) => {
+        const next = new Set(prev);
+        next.delete(questionId);
+        return next;
+      });
+      toast.success("Answer cleared");
+    } catch {
+      toast.error("Failed to clear answer");
+    }
+  };
+
   const handleSubmitAllAnswers = async () => {
     if (!activeAssessment || !allCategoriesComplete) return;
     try {
@@ -431,6 +505,15 @@ export default function AssessmentsPage() {
                             {answers[q.id].score}/10
                           </Badge>
                         )}
+                        {isAdmin && activeAssessment && answers[q.id] && answers[q.id].value !== "__SKIPPED__" && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAnswer(q.id)}
+                            className="text-xs text-red-500 hover:text-red-700 font-medium ml-2"
+                          >
+                            Clear answer
+                          </button>
+                        )}
                       </div>
 
                       {q.type === "SLIDER" ? (
@@ -527,12 +610,9 @@ export default function AssessmentsPage() {
                                 <Checkbox
                                   id={`${q.id}-${opt}`}
                                   checked={isChecked}
-                                  onCheckedChange={(checked) => {
-                                    const next = checked
-                                      ? [...selected, opt]
-                                      : selected.filter((s) => s !== opt);
-                                    handleSaveAnswer(q.id, JSON.stringify(next), null);
-                                  }}
+                                  onCheckedChange={(checked) =>
+                                    handleMultiChange(q.id, opt, checked === true)
+                                  }
                                 />
                                 <Label
                                   htmlFor={`${q.id}-${opt}`}
