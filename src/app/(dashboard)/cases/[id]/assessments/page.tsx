@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   Loader2, Plus, BarChart3, ClipboardCheck, CheckCircle2, Clock,
-  AlertCircle, TrendingUp,
+  AlertCircle, TrendingUp, X, Pencil, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -93,6 +93,17 @@ export default function AssessmentsPage() {
   const [answers, setAnswers] = useState<Record<string, { value: string; score: number | null }>>({});
   const [skippedQuestions, setSkippedQuestions] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+
+  // Question editing (admin only)
+  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+  const [editFormText, setEditFormText] = useState("");
+  const [editFormCategory, setEditFormCategory] = useState("");
+  const [editFormType, setEditFormType] = useState("");
+  const [editFormOptions, setEditFormOptions] = useState("");
+  const [editFormSubcategory, setEditFormSubcategory] = useState("");
+  const [editFormOrder, setEditFormOrder] = useState(0);
+  const [questionToDelete, setQuestionToDelete] = useState<string | null>(null);
+  const [savingQuestion, setSavingQuestion] = useState(false);
 
   const fetchAssessments = useCallback(async () => {
     try {
@@ -348,6 +359,84 @@ export default function AssessmentsPage() {
     }
   };
 
+  const openEditQuestionDialog = (q: Question) => {
+    setEditingQuestion(q);
+    setEditFormText(q.text);
+    setEditFormCategory(q.category);
+    setEditFormType(q.type);
+    setEditFormOptions(q.options ? q.options.join("\n") : "");
+    setEditFormSubcategory(q.subcategory || "");
+    setEditFormOrder(q.order);
+  };
+
+  const handleSaveQuestion = async () => {
+    if (!editFormText.trim()) {
+      toast.error("Please enter question text");
+      return;
+    }
+    if (
+      (editFormType === "SELECT" || editFormType === "MULTI") &&
+      !editFormOptions.trim()
+    ) {
+      toast.error("Please enter options for choice questions");
+      return;
+    }
+    setSavingQuestion(true);
+    try {
+      const optionsArray =
+        editFormType === "SELECT" || editFormType === "MULTI"
+          ? editFormOptions.split("\n").filter((o) => o.trim())
+          : null;
+      const res = await fetch("/api/questions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingQuestion!.id,
+          text: editFormText,
+          category: editFormCategory,
+          type: editFormType,
+          options: optionsArray,
+          order: editFormOrder,
+          subcategory: editFormSubcategory.trim() || null,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+      toast.success("Question updated");
+      setEditingQuestion(null);
+      fetchQuestions();
+    } catch {
+      toast.error("Failed to save question");
+    } finally {
+      setSavingQuestion(false);
+    }
+  };
+
+  const handleDeleteQuestion = async (questionId: string) => {
+    setSavingQuestion(true);
+    try {
+      const res = await fetch(`/api/questions?id=${questionId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete");
+      setQuestions((prev) => prev.filter((q) => q.id !== questionId));
+      // Also remove any local answers for this question
+      setAnswers((prev) => {
+        const copy = { ...prev };
+        delete copy[questionId];
+        return copy;
+      });
+      setSkippedQuestions((prev) => {
+        const next = new Set(prev);
+        next.delete(questionId);
+        return next;
+      });
+      setQuestionToDelete(null);
+      toast.success("Question deleted");
+    } catch {
+      toast.error("Failed to delete question");
+    } finally {
+      setSavingQuestion(false);
+    }
+  };
+
   const handleSubmitAllAnswers = async () => {
     if (!activeAssessment || !allCategoriesComplete) return;
     try {
@@ -500,20 +589,62 @@ export default function AssessmentsPage() {
                             </p>
                           )}
                         </div>
-                        {answers[q.id]?.score !== null && answers[q.id]?.score !== undefined && (
-                          <Badge variant="secondary" className="ml-2">
-                            {answers[q.id].score}/10
-                          </Badge>
-                        )}
-                        {isAdmin && activeAssessment && answers[q.id] && answers[q.id].value !== "__SKIPPED__" && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteAnswer(q.id)}
-                            className="text-xs text-red-500 hover:text-red-700 font-medium ml-2"
-                          >
-                            Clear answer
-                          </button>
-                        )}
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {answers[q.id]?.score !== null && answers[q.id]?.score !== undefined && (
+                            <Badge variant="secondary" className="ml-0">
+                              {answers[q.id].score}/10
+                            </Badge>
+                          )}
+                          {isAdmin && activeAssessment && answers[q.id] && answers[q.id].value !== "__SKIPPED__" && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteAnswer(q.id)}
+                              className="text-xs text-orange-500 hover:text-orange-700 font-medium ml-1"
+                            >
+                              Clear
+                            </button>
+                          )}
+                          {isAdmin && activeAssessment && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => openEditQuestionDialog(q)}
+                                className="text-xs text-blue-500 hover:text-blue-700 font-medium ml-1 inline-flex items-center gap-0.5"
+                              >
+                                <Pencil className="w-3 h-3" />
+                                Edit
+                              </button>
+                              {questionToDelete === q.id ? (
+                                <span className="inline-flex items-center gap-0.5 ml-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteQuestion(q.id)}
+                                    disabled={savingQuestion}
+                                    className="text-xs text-red-600 hover:text-red-800 font-medium"
+                                  >
+                                    Confirm
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setQuestionToDelete(null)}
+                                    className="text-xs text-gray-400 hover:text-gray-600"
+                                  >
+                                    Cancel
+                                  </button>
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setQuestionToDelete(q.id)}
+                                  className="text-xs text-red-400 hover:text-red-600 font-medium ml-1 inline-flex items-center gap-0.5"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  Del
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </div>
 
                       {q.type === "SLIDER" ? (
@@ -910,6 +1041,130 @@ export default function AssessmentsPage() {
             ))}
           </Tabs>
         </>
+      )}
+
+      {/* ─── Edit Question Dialog (admin) ─────────── */}
+      {editingQuestion && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setEditingQuestion(null)}
+          />
+          <div className="relative z-10 bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900">Edit Question</h3>
+              <button
+                onClick={() => setEditingQuestion(null)}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Question Text
+                </label>
+                <textarea
+                  value={editFormText}
+                  onChange={(e) => setEditFormText(e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Category
+                  </label>
+                  <select
+                    value={editFormCategory}
+                    onChange={(e) => setEditFormCategory(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  >
+                    {Object.entries(CATEGORY_LABELS).map(([val, label]) => (
+                      <option key={val} value={val}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Question Type
+                  </label>
+                  <select
+                    value={editFormType}
+                    onChange={(e) => setEditFormType(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="SLIDER">Rating (0-10 Slider)</option>
+                    <option value="BOOLEAN">Yes/No</option>
+                    <option value="TEXT">Open Text</option>
+                    <option value="SELECT">Single Choice</option>
+                    <option value="MULTI">Multiple Choice</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Subcategory <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={editFormSubcategory}
+                  onChange={(e) => setEditFormSubcategory(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Display Order
+                </label>
+                <input
+                  type="number"
+                  value={editFormOrder}
+                  onChange={(e) => setEditFormOrder(parseInt(e.target.value) || 0)}
+                  min={1}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              {(editFormType === "SELECT" || editFormType === "MULTI") && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Options (one per line)
+                  </label>
+                  <textarea
+                    value={editFormOptions}
+                    onChange={(e) => setEditFormOptions(e.target.value)}
+                    rows={4}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  />
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setEditingQuestion(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveQuestion}
+                disabled={savingQuestion}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:bg-blue-400 disabled:cursor-not-allowed"
+              >
+                {savingQuestion ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </span>
+                ) : (
+                  "Save Changes"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
