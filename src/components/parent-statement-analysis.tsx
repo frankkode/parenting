@@ -504,25 +504,46 @@ function PointSection({
 function buildAnalysis(content: string): StatementAnalysis {
   const text = content.toLowerCase();
 
-  // Detect key patterns
+  // ---- Pattern Detection ----
+  // Emotional / exhaustion
   const hasExhaustion =
     text.includes("exhaust") || text.includes("tired") || text.includes("overwhelm");
+  // Custody / scheduling
   const hasCustody =
     text.includes("custody") || text.includes("50/50") || text.includes("schedule") || text.includes("parenting");
+  const hasScheduleNotice =
+    text.includes("inform") && (text.includes("advance") || text.includes("week") || text.includes("notice"));
+  // Location / housing
   const hasLocation =
     text.includes("move") || text.includes("housing") || text.includes("apartment") || text.includes("distance");
+  // Work / finances
   const hasJob =
     text.includes("work") || text.includes("job") || text.includes("employment") || text.includes("financial");
+  // Communication / respect
   const hasCommunication =
     text.includes("communicat") || text.includes("respect") || text.includes("conflict");
+  const hasRespectCommunication =
+    text.includes("respectful") || text.includes("constructive") || text.includes("best interest");
+  // Children references
   const hasChildren =
     text.includes("child") || text.includes("kid") || text.includes("son") || text.includes("daughter");
+  // Legal
   const hasLegal =
     text.includes("divorce") || text.includes("court") || text.includes("law") || text.includes("immigration") || text.includes("municipality");
+  const hasWithdrawCourt =
+    text.includes("withdraw") && (text.includes("court") || text.includes("case"));
+  // Shared responsibilities
+  const hasSharedResponsibilities =
+    text.includes("parental responsibilities") || (text.includes("share") && text.includes("responsibilit"));
+  const hasCareDetails =
+    text.includes("sick") || text.includes("school meeting") || text.includes("medical appointment") || text.includes("doctor");
+  // Cost sharing
+  const hasCostSharing =
+    text.includes("costs") || text.includes("clothing") || text.includes("leisure") || text.includes("holiday") || text.includes("vacation");
 
+  // ---- Build analysis dynamically ----
   const analysis: StatementAnalysis = {
-    summary: "Parent statement analyzed for key concerns, proposed solutions, and actionable agreements.",
-
+    summary: "",
     keyConcerns: [],
     proposedSolutions: [],
     communicationNeeds: [],
@@ -532,7 +553,25 @@ function buildAnalysis(content: string): StatementAnalysis {
     agreementProposals: [],
   };
 
-  // Key Concerns
+  // ---- Summary ----
+  const summaryParts: string[] = [];
+  if (hasExhaustion) summaryParts.push("the parent reports exhaustion from childcare responsibilities");
+  if (hasCustody) summaryParts.push("concerns about parenting schedule and custody arrangement");
+  if (hasLocation) summaryParts.push("geographic distance creates logistical challenges");
+  if (hasJob) summaryParts.push("work and financial constraints affect parenting availability");
+  if (hasCommunication) summaryParts.push("communication and respectful interaction are identified as important");
+  if (hasWithdrawCourt) summaryParts.push("the parent requests withdrawal of court proceedings as a foundation for cooperation");
+  if (hasSharedResponsibilities) summaryParts.push("shared parental responsibilities are proposed");
+  if (hasCostSharing) summaryParts.push("equitable sharing of child-related costs is requested");
+  if (hasCareDetails) summaryParts.push("day-to-day childcare tasks are specified (sick care, school, medical)");
+  if (hasScheduleNotice) summaryParts.push("advance notice for schedule changes is proposed");
+
+  analysis.summary = summaryParts.length > 0
+    ? "This parent statement highlights: " + summaryParts.join("; ") + "."
+    : "Parent statement analyzed for key concerns, proposed solutions, and actionable agreements.";
+
+  // ---- Key Concerns ----
+
   if (hasExhaustion) {
     analysis.keyConcerns.push({
       category: "EMOTIONAL_READINESS",
@@ -546,14 +585,19 @@ function buildAnalysis(content: string): StatementAnalysis {
   }
 
   if (hasCustody) {
+    const custodyPoints = ["Need to establish a fair and sustainable parenting schedule"];
+    if (text.includes("50/50")) {
+      custodyPoints.unshift("Desire for 50/50 shared custody arrangement expressed");
+    } else {
+      custodyPoints.unshift("Parenting schedule and custody terms need clarification");
+    }
+    if (hasScheduleNotice) {
+      custodyPoints.push("Advance notice period requested for schedule modifications");
+    }
     analysis.keyConcerns.push({
       category: "CHILDCARE_CAPACITY",
       label: "Custody & Parenting Schedule",
-      points: [
-        "Current schedule is limited (2 weekends/month for one parent)",
-        "Desire for 50/50 shared custody arrangement expressed",
-        "Need to establish a fair and sustainable parenting schedule",
-      ],
+      points: custodyPoints,
     });
   }
 
@@ -576,80 +620,221 @@ function buildAnalysis(content: string): StatementAnalysis {
       points: [
         "Employment obligations limit scheduling flexibility",
         "Financial stability is tied to current job location",
-        "Work requirements affect citizenship/immigration status",
+        "Work requirements may affect availability for parenting time",
       ],
     });
   }
 
-  // Proposed Solutions
-  analysis.proposedSolutions.push({
-    category: "LIVING_SITUATION",
-    label: "Relocation Plan",
-    points: [
-      "Explore housing options closer to children's school",
-      "Contact housing officers for relocation assistance",
-      "Prioritize moving to Gråbo area near the children",
-    ],
-  });
+  if (hasSharedResponsibilities || hasCareDetails) {
+    const pts = ["The parent proposes sharing all parental responsibilities"];
+    if (hasCareDetails) {
+      pts.push("Specific care duties mentioned: caring for sick children, attending school meetings, and medical appointments");
+    }
+    pts.push("Both parents' involvement in day-to-day childcare decisions is important");
+    analysis.keyConcerns.push({
+      category: "CHILDCARE_CAPACITY",
+      label: "Shared Parental Responsibilities",
+      points: pts,
+    });
+  }
 
-  analysis.proposedSolutions.push({
-    category: "CHILDCARE_CAPACITY",
-    label: "Shared Custody Transition",
-    points: [
-      "Develop a graduated transition plan toward 50/50 custody",
-      "Review and adjust parenting schedule after relocation",
-      "Ensure changes do not negatively impact either parent's stability",
-    ],
-  });
+  if (hasCostSharing) {
+    analysis.keyConcerns.push({
+      category: "FINANCIAL_CAPACITY",
+      label: "Shared Child-Related Costs",
+      points: [
+        "Parent proposes sharing the costs of all child-related expenses",
+        "Cost categories include clothing, leisure activities, and holidays/vacations",
+        "Equitable financial contribution is important for the children's wellbeing",
+      ],
+    });
+  }
 
-  // Communication Needs
-  if (hasCommunication || hasChildren) {
+  if (hasWithdrawCourt) {
+    analysis.keyConcerns.push({
+      category: "FINANCIAL_CAPACITY",
+      label: "Court Proceedings & Cooperation",
+      points: [
+        "Parent views withdrawal of the court case as a prerequisite for effective cooperation",
+        "Ongoing litigation may be creating tension that affects co-parenting",
+        "Alternative dispute resolution through mediation may be a more constructive path",
+      ],
+    });
+  }
+
+  // ---- Proposed Solutions ----
+
+  if (hasLocation) {
+    analysis.proposedSolutions.push({
+      category: "LIVING_SITUATION",
+      label: "Relocation Plan",
+      points: [
+        "Explore housing options closer to the children's school and other parent",
+        "Contact housing officers for relocation assistance if available",
+        "Prioritize living arrangements that facilitate shared parenting",
+      ],
+    });
+  }
+
+  if (hasCustody) {
+    analysis.proposedSolutions.push({
+      category: "CHILDCARE_CAPACITY",
+      label: "Shared Custody Arrangement",
+      points: [
+        "Develop a clear parenting schedule that both parents can commit to",
+        "Consider a graduated transition if moving toward increased shared custody",
+        "Review and adjust the schedule periodically based on the children's needs",
+      ],
+    });
+  }
+
+  if (hasSharedResponsibilities || hasCareDetails) {
+    analysis.proposedSolutions.push({
+      category: "CHILDCARE_CAPACITY",
+      label: "Shared Responsibility Framework",
+      points: [
+        "Create a clear division of parental responsibilities for school, medical, and care duties",
+        "Establish a protocol for handling unexpected situations (sickness, emergencies)",
+        "Both parents should have access to school and medical records and be informed of appointments",
+      ],
+    });
+  }
+
+  if (hasCostSharing) {
+    analysis.proposedSolutions.push({
+      category: "FINANCIAL_CAPACITY",
+      label: "Cost-Sharing System",
+      points: [
+        "Agree on which child expenses are shared and in what proportion",
+        "Establish a method for tracking and settling shared costs (e.g., shared spreadsheet, app)",
+        "Define categories: clothing, school supplies, activities, holidays/vacations, medical",
+      ],
+    });
+  }
+
+  if (hasWithdrawCourt) {
+    analysis.proposedSolutions.push({
+      category: "LEGAL",
+      label: "Alternative Dispute Resolution",
+      points: [
+        "Explore mediation as an alternative to court proceedings",
+        "Use this co-parenting platform to build agreements before formalizing them legally",
+        "Withdrawal of court case can be conditional on reaching a mediated agreement",
+      ],
+    });
+  }
+
+  // ---- Communication Needs ----
+
+  if (hasCommunication || hasRespectCommunication || hasChildren) {
+    const commPoints = ["Communication should focus on children's best interests"];
+    if (hasRespectCommunication) {
+      commPoints.unshift("Both parents should maintain respectful and constructive communication");
+    } else {
+      commPoints.unshift("Both parents need to recognize that conflict negatively impacts children");
+    }
+    commPoints.push("Mutual respect — not one-sided — is essential for co-parenting");
     analysis.communicationNeeds.push({
       category: "EMOTIONAL_READINESS",
       label: "Mutual Respect & Communication",
+      points: commPoints,
+    });
+  }
+
+  if (hasChildren || hasCommunication) {
+    analysis.communicationNeeds.push({
+      category: "CHILD_WELLBEING",
+      label: "Children's Emotional Wellbeing",
       points: [
-        "Both parents need to recognize that conflict negatively impacts children",
-        "Communication should focus on children's best interests",
-        "Mutual respect — not one-sided — is essential for co-parenting",
+        "Children are vulnerable to the effects of parental conflict",
+        "Hostility and poor communication harm children's development",
+        "Parents should work together to minimize negative impacts of separation",
       ],
     });
   }
 
-  analysis.communicationNeeds.push({
-    category: "CHILD_WELLBEING",
-    label: "Children's Emotional Wellbeing",
-    points: [
-      "Children are vulnerable to the effects of parental conflict",
-      "Hostility and poor communication harm children's development",
-      "Parents should work together to minimize negative impacts of separation",
-    ],
-  });
+  if (hasScheduleNotice) {
+    analysis.communicationNeeds.push({
+      category: "CHILDCARE_CAPACITY",
+      label: "Schedule Change Notifications",
+      points: [
+        "Parent requests at least one week's advance notice for schedule changes",
+        "Adequate notice allows the other parent to plan and avoids last-minute disruption",
+        "Clear communication around scheduling prevents misunderstandings and conflict",
+      ],
+    });
+  }
 
-  // Legal / Administrative
+  // ---- Legal / Administrative ----
+
   if (hasLegal) {
+    const legalPts = ["Clear custody agreement based on applicable law should be established"];
+    if (text.includes("municipality") || text.includes("informationssamtal")) {
+      legalPts.unshift("Informationssamtal with municipality is recommended as a first step");
+    }
+    if (text.includes("divorce")) {
+      legalPts.unshift("Divorce should be formalized through proper legal channels");
+    }
     analysis.legalAdministrative.push({
       category: "LEGAL",
       label: "Divorce & Legal Process",
+      points: legalPts,
+    });
+  }
+
+  if (hasWithdrawCourt) {
+    analysis.legalAdministrative.push({
+      category: "LEGAL",
+      label: "Court Case Withdrawal",
       points: [
-        "Divorce should be formalized even though parents have been separated for years",
-        "Informationssamtal with municipality is recommended as a first step",
-        "Clear custody agreement based on Swedish law should be established",
+        "Parent sees the court case as an obstacle to cooperative co-parenting",
+        "Withdrawal would signal good faith and willingness to collaborate",
+        "Mediation is proposed as a replacement for litigation to resolve disputes",
       ],
     });
   }
 
-  // Action Items
-  analysis.actionItems = [
-    "Contact housing officers to explore relocation to Gråbo area",
-    "Schedule informationssamtal with Lerum Municipality",
-    "Draft a graduated parenting schedule working toward 50/50 shared custody",
-    "Establish communication guidelines focused on children's wellbeing",
-    "Review work schedule impact once relocation is confirmed",
-  ];
+  // ---- Action Items ----
 
-  // Assessment Mapping
-  analysis.assessmentMapping = [
-    {
+  if (hasLocation) {
+    analysis.actionItems.push("Contact housing officers to explore relocation options");
+  }
+  if (hasLegal && text.includes("municipality")) {
+    analysis.actionItems.push("Schedule informationssamtal with the municipality");
+  }
+  if (hasCustody) {
+    analysis.actionItems.push("Draft a parenting schedule that both parents can agree to");
+  }
+  if (hasCommunication || hasRespectCommunication) {
+    analysis.actionItems.push("Establish communication guidelines focused on children's wellbeing");
+  }
+  if (hasJob) {
+    analysis.actionItems.push("Review work schedule impact on proposed parenting arrangements");
+  }
+  if (hasWithdrawCourt) {
+    analysis.actionItems.push("Discuss terms and conditions for withdrawing the court case");
+    analysis.actionItems.push("Set up mediation as an alternative dispute resolution mechanism");
+  }
+  if (hasSharedResponsibilities || hasCareDetails) {
+    analysis.actionItems.push("Create a shared responsibilities plan covering sick care, school, and medical appointments");
+  }
+  if (hasCostSharing) {
+    analysis.actionItems.push("Set up a cost-sharing agreement and tracking system for child expenses");
+  }
+
+  // Fallback action items if nothing specific was detected
+  if (analysis.actionItems.length === 0) {
+    analysis.actionItems = [
+      "Review the parent's statement for actionable requests",
+      "Discuss the parent's concerns in a mediation session",
+      "Identify areas of agreement between both parents' statements",
+    ];
+  }
+
+  // ---- Assessment Mapping ----
+
+  if (hasLocation) {
+    analysis.assessmentMapping.push({
       category: "LIVING_SITUATION",
       relevance: "Geographic distance and housing stability directly impact childcare capacity",
       suggestedQuestions: [
@@ -657,65 +842,103 @@ function buildAnalysis(content: string): StatementAnalysis {
         "Is your home suitable for children to stay overnight?",
         "How close do you live to your children's school?",
       ],
-    },
-    {
+    });
+  }
+
+  if (hasJob) {
+    analysis.assessmentMapping.push({
       category: "WORK_SITUATION",
       relevance: "Employment constraints affect availability for parenting time",
       suggestedQuestions: [
         "How flexible is your work schedule for childcare?",
         "Does your commute affect your ability to care for children?",
       ],
-    },
-    {
+    });
+  }
+
+  if (hasCustody || hasSharedResponsibilities || hasCareDetails) {
+    analysis.assessmentMapping.push({
       category: "CHILDCARE_CAPACITY",
-      relevance: "Core issue — need to assess readiness for increased custody share",
+      relevance: hasSharedResponsibilities
+        ? "Parent proposes shared responsibilities — assess readiness for cooperative childcare"
+        : "Core issue — need to assess readiness for shared custody",
       suggestedQuestions: [
         "How many days per week can you realistically care for the children?",
         "Do you have support systems for childcare?",
+        "Are you able to attend school meetings and medical appointments?",
       ],
-    },
-    {
+    });
+  }
+
+  if (hasCostSharing) {
+    analysis.assessmentMapping.push({
+      category: "FINANCIAL_CAPACITY",
+      relevance: "Parent proposes sharing child-related costs — assess financial capability and fairness",
+      suggestedQuestions: [
+        "What is your current financial situation?",
+        "What proportion of child expenses do you think each parent should cover?",
+        "Are there any large upcoming expenses for the children?",
+      ],
+    });
+  }
+
+  if (hasExhaustion || hasCommunication || hasRespectCommunication) {
+    analysis.assessmentMapping.push({
       category: "EMOTIONAL_READINESS",
-      relevance: "Exhaustion, conflict, and communication challenges affect co-parenting",
+      relevance: hasExhaustion
+        ? "Exhaustion and communication challenges affect co-parenting capacity"
+        : "Communication and respect are key factors in successful co-parenting",
       suggestedQuestions: [
         "How well do you manage stress and conflict with the other parent?",
         "Are you open to co-parenting counseling?",
+        "How would you describe the current communication dynamic?",
       ],
-    },
-    {
+    });
+  }
+
+  if (hasChildren || hasCommunication) {
+    analysis.assessmentMapping.push({
       category: "CHILD_WELLBEING",
-      relevance: "Children's emotional health is affected by parental conflict and separation",
+      relevance: "Children's emotional health is affected by parental dynamics",
       suggestedQuestions: [
         "How are the children coping with the separation?",
         "Do the children express feelings about the custody arrangement?",
+        "Are the children's routines and activities being maintained consistently?",
       ],
-    },
-  ];
+    });
+  }
 
-  // Agreement Proposals
-  analysis.agreementProposals = [
-    {
+  // ---- Agreement Proposals ----
+
+  if (hasCustody) {
+    analysis.agreementProposals.push({
       title: "Parenting Schedule Framework",
       category: "CHILDCARE_CAPACITY",
       content:
-        "1. Both parents agree to work toward a fair shared custody arrangement.\n" +
-        "2. A graduated transition plan will be developed, starting with increased weekend and weekday time for the non-primary parent.\n" +
-        "3. Once relocation is completed, the schedule will be reviewed to move toward 50/50 shared custody.\n" +
-        "4. Both parents commit to flexibility in scheduling for the children's benefit.\n" +
-        "5. The schedule will be reviewed every 3 months and adjusted as needed.",
-    },
-    {
+        "1. Both parents agree to establish a clear and fair parenting schedule.\n" +
+        "2. The schedule will specify regular parenting time, holidays, and special occasions.\n" +
+        "3. Both parents commit to following the agreed schedule consistently.\n" +
+        "4. Changes to the schedule require mutual agreement, with at least one week's notice unless it is an emergency.\n" +
+        "5. The schedule will be reviewed every 3 months and adjusted as the children's needs evolve.",
+    });
+  }
+
+  if (hasCommunication || hasRespectCommunication) {
+    analysis.agreementProposals.push({
       title: "Communication & Mutual Respect Agreement",
       category: "EMOTIONAL_READINESS",
       content:
         "1. Both parents agree to communicate respectfully and constructively at all times.\n" +
         "2. Communication will focus on the children's needs, not personal grievances.\n" +
         "3. Hostile or accusatory language will be avoided — disagreements will be addressed calmly.\n" +
-        "4. Both parents recognize that mutual respect means respect is given and received equally.\n" +
+        "4. Both parents recognize that mutual respect is given and received equally.\n" +
         "5. If communication breaks down, both agree to use the mediation platform or seek professional co-parenting counseling.",
-    },
-    {
-      title: "Children's Wellbeing Priority Statement",
+    });
+  }
+
+  if (hasChildren) {
+    analysis.agreementProposals.push({
+      title: "Children's Wellbeing Priority Agreement",
       category: "CHILD_WELLBEING",
       content:
         "1. Both parents acknowledge that conflict and hostility negatively impact the children's emotional wellbeing.\n" +
@@ -723,8 +946,11 @@ function buildAnalysis(content: string): StatementAnalysis {
         "3. Both parents will shield the children from adult conflicts and disagreements.\n" +
         "4. Regular check-ins on the children's emotional state will be part of the co-parenting routine.\n" +
         "5. Both parents support maintaining consistent routines, school attendance, and social activities for the children.",
-    },
-    {
+    });
+  }
+
+  if (hasLocation) {
+    analysis.agreementProposals.push({
       title: "Relocation Action Plan",
       category: "LIVING_SITUATION",
       content:
@@ -733,18 +959,74 @@ function buildAnalysis(content: string): StatementAnalysis {
         "3. The other parent will provide necessary documentation to support the housing application if needed.\n" +
         "4. Once relocation is achieved, the parenting schedule will be renegotiated.\n" +
         "5. If relocation is not possible within 6 months, alternative solutions will be discussed.",
-    },
-    {
-      title: "Legal Process & Municipality Information Session",
+    });
+  }
+
+  if (hasSharedResponsibilities || hasCareDetails) {
+    analysis.agreementProposals.push({
+      title: "Shared Parental Responsibilities Agreement",
+      category: "CHILDCARE_CAPACITY",
+      content:
+        "1. Both parents agree to share all parental responsibilities related to the children equally.\n" +
+        "2. Responsibilities include: caring for the children when sick, attending school meetings, and going to medical appointments.\n" +
+        "3. Both parents will be listed as emergency contacts at school and with healthcare providers.\n" +
+        "4. School and medical records will be accessible to both parents at all times.\n" +
+        "5. In case of a child's illness during one parent's time, both parents will be informed promptly.",
+    });
+  }
+
+  if (hasCostSharing) {
+    analysis.agreementProposals.push({
+      title: "Child Expense Cost-Sharing Agreement",
       category: "FINANCIAL_CAPACITY",
       content:
-        "1. Both parents agree to participate in an informationssamtal with Lerum Municipality.\n" +
-        "2. During this session, a clear custody agreement based on Swedish law will be established.\n" +
-        "3. The custody agreement will guide all co-parenting arrangements going forward.\n" +
-        "4. Both parents agree to postpone the formal divorce filing until after the informationssamtal.\n" +
-        "5. The custody agreement reached during the informationssamtal will be submitted to court when the divorce application is filed.",
-    },
-  ];
+        "1. Both parents agree to share the costs of all child-related expenses fairly.\n" +
+        "2. Covered categories include: clothing, school supplies, leisure activities, sports, and holidays/vacations.\n" +
+        "3. Extraordinary expenses (above an agreed threshold) require mutual consent before purchase.\n" +
+        "4. Parents will use a shared tracking system (app or spreadsheet) to log and reconcile shared expenses monthly.\n" +
+        "5. The cost-sharing arrangement will be reviewed annually or when either parent's financial situation changes significantly.",
+    });
+  }
+
+  if (hasScheduleNotice) {
+    analysis.agreementProposals.push({
+      title: "Schedule Respect & Notice Agreement",
+      category: "CHILDCARE_CAPACITY",
+      content:
+        "1. Both parents commit to respecting the agreed parenting schedule at all times.\n" +
+        "2. If a parent is unable to exercise their scheduled parenting time, they must inform the other parent at least one week in advance.\n" +
+        "3. Exceptions for emergencies (illness, accidents) will be communicated as soon as reasonably possible.\n" +
+        "4. Repeated failure to follow the schedule or provide adequate notice will be addressed through mediation.\n" +
+        "5. Make-up time will be offered for any missed parenting days due to short-notice cancellations.",
+    });
+  }
+
+  if (hasWithdrawCourt) {
+    analysis.agreementProposals.push({
+      title: "Court Proceedings Resolution Agreement",
+      category: "FINANCIAL_CAPACITY",
+      content:
+        "1. Both parents acknowledge that withdrawing the court case is a show of good faith toward cooperative co-parenting.\n" +
+        "2. The withdrawal will be conditional on reaching a mediated agreement covering the key points raised by both parents.\n" +
+        "3. The mediated agreement will serve as the foundation for all future co-parenting arrangements.\n" +
+        "4. Both parents agree to use mediation rather than litigation to resolve future disputes.\n" +
+        "5. If mediation fails, either parent may re-file with the court, but only after making a genuine effort to resolve the issue through mediation.",
+    });
+  }
+
+  // Fallback proposal if nothing specific detected
+  if (analysis.agreementProposals.length === 0) {
+    analysis.agreementProposals.push({
+      title: "General Co-Parenting Framework",
+      category: "EMOTIONAL_READINESS",
+      content:
+        "1. Both parents agree to work cooperatively in the children's best interests.\n" +
+        "2. Open and respectful communication will be maintained regarding all child-related matters.\n" +
+        "3. Both parents will attend mediation sessions to work through specific concerns.\n" +
+        "4. Decisions affecting the children will be made jointly whenever possible.\n" +
+        "5. This agreement will be reviewed and expanded as specific issues are resolved.",
+    });
+  }
 
   return analysis;
 }
