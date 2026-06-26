@@ -108,6 +108,7 @@ export default function AssessmentsPage() {
   // Add from bank
   const [showBankDialog, setShowBankDialog] = useState(false);
   const [bankQuestions, setBankQuestions] = useState<Question[]>([]);
+  const [bankLoading, setBankLoading] = useState(false);
   const [bankSearch, setBankSearch] = useState("");
   const [bankCategory, setBankCategory] = useState("ALL");
   const [addingQuestionId, setAddingQuestionId] = useState<string | null>(null);
@@ -232,6 +233,8 @@ export default function AssessmentsPage() {
   };
 
   const fetchBankQuestions = async () => {
+    setBankLoading(true);
+    setBankQuestions([]);
     try {
       const res = await fetch("/api/questions");
       if (!res.ok) throw new Error("Failed to fetch");
@@ -239,6 +242,8 @@ export default function AssessmentsPage() {
       setBankQuestions(data);
     } catch {
       toast.error("Failed to load question bank");
+    } finally {
+      setBankLoading(false);
     }
   };
 
@@ -1172,58 +1177,83 @@ export default function AssessmentsPage() {
             </div>
 
             {/* Question list */}
-            <div className="flex-1 overflow-y-auto px-6 py-3 space-y-1">
-              {bankQuestions
-                .filter((q) => {
-                  const matchSearch = !bankSearch ||
-                    q.text.toLowerCase().includes(bankSearch.toLowerCase());
-                  const matchCat = bankCategory === "ALL" || q.category === bankCategory;
-                  const notAlreadyInAssessment = !questions.some((aq) => aq.id === q.id);
-                  return matchSearch && matchCat && notAlreadyInAssessment;
-                })
-                .map((q) => (
-                  <div
-                    key={q.id}
-                    className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 border border-gray-100"
-                  >
-                    <div className="flex-1 min-w-0 mr-4">
-                      <p className="text-sm text-gray-900">{q.text}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-gray-400">
-                          {CATEGORY_LABELS[q.category] || q.category}
-                        </span>
-                        <span className="text-xs text-gray-300">{q.type}</span>
-                      </div>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleAddQuestionToAssessment(q.id)}
-                      disabled={addingQuestionId === q.id}
-                    >
-                      {addingQuestionId === q.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <Plus className="h-3 w-3" />
-                      )}
-                      <span className="ml-1">Add</span>
-                    </Button>
-                  </div>
-                ))}
-              {bankQuestions.filter((q) => {
-                const matchSearch = !bankSearch ||
-                  q.text.toLowerCase().includes(bankSearch.toLowerCase());
-                const matchCat = bankCategory === "ALL" || q.category === bankCategory;
-                const notAlreadyAdded = !questions.some((aq) => aq.id === q.id);
-                return matchSearch && matchCat && notAlreadyAdded;
-              }).length === 0 && (
-                <div className="text-center py-8">
-                  <p className="text-sm text-gray-500">
-                    {bankQuestions.length === 0
-                      ? "Loading question bank..."
-                      : "No matching questions found, or all are already in this assessment."}
-                  </p>
+            <div className="flex-1 overflow-y-auto px-6 py-3">
+              {bankLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
                 </div>
+              ) : bankQuestions.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-sm text-gray-500">No questions found in the bank.</p>
+                </div>
+              ) : (
+                (() => {
+                  const filtered = bankQuestions.filter((q) => {
+                    const matchSearch = !bankSearch ||
+                      q.text.toLowerCase().includes(bankSearch.toLowerCase());
+                    const matchCat = bankCategory === "ALL" || q.category === bankCategory;
+                    return matchSearch && matchCat;
+                  });
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="text-center py-8">
+                        <p className="text-sm text-gray-500">No questions match your search or filter.</p>
+                      </div>
+                    );
+                  }
+                  const alreadyInSet = new Set(questions.map((aq) => aq.id));
+                  const newCount = filtered.filter((q) => !alreadyInSet.has(q.id)).length;
+                  return (
+                    <div className="space-y-1">
+                      {newCount > 0 && (
+                        <p className="text-xs text-gray-400 pb-1">{newCount} question{newCount !== 1 ? "s" : ""} available to add</p>
+                      )}
+                      {filtered.map((q) => {
+                        const alreadyAdded = alreadyInSet.has(q.id);
+                        return (
+                          <div
+                            key={q.id}
+                            className={`flex items-center justify-between p-3 rounded-lg border ${
+                              alreadyAdded
+                                ? "bg-gray-50 border-gray-100 opacity-60"
+                                : "hover:bg-gray-50 border-gray-100"
+                            }`}
+                          >
+                            <div className="flex-1 min-w-0 mr-4">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm text-gray-900">{q.text}</p>
+                                {alreadyAdded && (
+                                  <Badge variant="secondary" className="text-xs shrink-0">Already added</Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-xs text-gray-400">
+                                  {CATEGORY_LABELS[q.category] || q.category}
+                                </span>
+                                <span className="text-xs text-gray-300">{q.type}</span>
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant={alreadyAdded ? "ghost" : "outline"}
+                              onClick={() => handleAddQuestionToAssessment(q.id)}
+                              disabled={alreadyAdded || addingQuestionId === q.id}
+                            >
+                              {addingQuestionId === q.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : alreadyAdded ? (
+                                <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                              ) : (
+                                <Plus className="h-3 w-3" />
+                              )}
+                              <span className="ml-1">{alreadyAdded ? "Added" : "Add"}</span>
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()
               )}
             </div>
 
