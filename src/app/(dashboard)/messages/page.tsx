@@ -4,6 +4,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatRelativeTime } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import ComposeMessageDialog from "@/components/compose-message-dialog";
 import {
   MessageSquare,
   ArrowRight,
@@ -34,11 +35,14 @@ export default async function MessagesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
-        <p className="text-gray-500 mt-1">
-          View messages across all your cases.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
+          <p className="text-gray-500 mt-1">
+            View and send messages across all your cases.
+          </p>
+        </div>
+        <ComposeMessageDialog />
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">

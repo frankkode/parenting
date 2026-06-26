@@ -4,6 +4,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import CreateEventDialog from "@/components/create-event-dialog";
 import { Calendar as CalendarIcon, Clock, User } from "lucide-react";
 
 const EVENT_COLORS: Record<string, string> = {
@@ -62,11 +63,14 @@ export default async function CalendarPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Calendar</h1>
-        <p className="text-gray-500 mt-1">
-          View scheduled events across all your cases.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Calendar</h1>
+          <p className="text-gray-500 mt-1">
+            View and schedule events across all your cases.
+          </p>
+        </div>
+        <CreateEventDialog />
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
