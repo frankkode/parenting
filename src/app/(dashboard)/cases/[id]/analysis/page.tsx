@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import ParentStatementAnalysis from "@/components/parent-statement-analysis";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, Legend,
@@ -307,6 +308,7 @@ export default function AnalysisPage() {
           <TabsTrigger value="agreements">Agreements</TabsTrigger>
           <TabsTrigger value="responsibilities">Responsibilities</TabsTrigger>
           <TabsTrigger value="conflict">Conflict Resolution</TabsTrigger>
+          <TabsTrigger value="statements">Parent Statements</TabsTrigger>
         </TabsList>
 
         <TabsContent value="assessments" className="space-y-4 mt-4">
@@ -619,6 +621,10 @@ export default function AnalysisPage() {
               )}
             </>
           )}
+        </TabsContent>
+
+        <TabsContent value="statements" className="mt-4">
+          <ParentStatementAnalysis caseId={caseId} isAdmin={isAdmin} />
         </TabsContent>
       </Tabs>
     </div>

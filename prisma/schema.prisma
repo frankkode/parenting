@@ -39,6 +39,7 @@ model User {
   notifications       Notification[]
   auditLogs           AuditLog[]
   growthRecords       GrowthRecord[]
+  parentStatements    ParentStatement[]
   accounts            Account[]
   sessions            Session[]
 }
@@ -100,6 +101,7 @@ model FamilyCase {
   notifications  Notification[]
   sharedNotes    SharedNote[]
   reports        Report[]
+  parentStatements ParentStatement[]
   responsibilityItems ResponsibilityItem[]
   aiRecommendations  AIRecommendation[]
   auditLogs      AuditLog[]
@@ -278,6 +280,19 @@ model SharedNote {
   userId       String
   title        String
   content      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  familyCase   FamilyCase @relation(fields: [familyCaseId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id])
+}
+
+model ParentStatement {
+  id           String   @id @default(cuid())
+  familyCaseId String
+  userId       String
+  content      String
+  analysis     String   @default("{}")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
