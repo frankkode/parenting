@@ -112,6 +112,18 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Copy all questions from the bank into this assessment
+    const allQuestions = await prisma.question.findMany({ select: { id: true, order: true } });
+    if (allQuestions.length > 0) {
+      await prisma.assessmentQuestion.createMany({
+        data: allQuestions.map((q) => ({
+          assessmentId: assessment.id,
+          questionId: q.id,
+          order: q.order,
+        })),
+      });
+    }
+
     return NextResponse.json(assessment, { status: 201 });
   } catch (error) {
     console.error("[ASSESSMENTS_POST]", error);

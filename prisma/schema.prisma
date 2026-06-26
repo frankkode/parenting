@@ -138,6 +138,18 @@ model Assessment {
   familyCase   FamilyCase @relation(fields: [familyCaseId], references: [id], onDelete: Cascade)
   user         User       @relation(fields: [userId], references: [id])
   answers      Answer[]
+  assessmentQuestions AssessmentQuestion[]
+}
+
+model AssessmentQuestion {
+  id           String     @id @default(cuid())
+  assessmentId String
+  questionId   String
+  order        Int        @default(0)
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  question     Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, questionId])
 }
 
 model Question {
@@ -151,7 +163,8 @@ model Question {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  answers   Answer[]
+  answers             Answer[]
+  assessmentQuestions AssessmentQuestion[]
 }
 
 model Answer {

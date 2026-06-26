@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   Loader2, Plus, BarChart3, ClipboardCheck, CheckCircle2, Clock,
-  AlertCircle, TrendingUp, X, Pencil, Trash2,
+  AlertCircle, TrendingUp, X, Pencil, Trash2, Search, Library,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -105,6 +105,13 @@ export default function AssessmentsPage() {
   const [questionToDelete, setQuestionToDelete] = useState<string | null>(null);
   const [savingQuestion, setSavingQuestion] = useState(false);
 
+  // Add from bank
+  const [showBankDialog, setShowBankDialog] = useState(false);
+  const [bankQuestions, setBankQuestions] = useState<Question[]>([]);
+  const [bankSearch, setBankSearch] = useState("");
+  const [bankCategory, setBankCategory] = useState("ALL");
+  const [addingQuestionId, setAddingQuestionId] = useState<string | null>(null);
+
   const fetchAssessments = useCallback(async () => {
     try {
       setLoading(true);
@@ -163,6 +170,18 @@ export default function AssessmentsPage() {
       const data = await res.json();
       setActiveAssessment(data);
 
+      // Load assessment-specific questions (or fall back to all questions for older assessments)
+      if (data.assessmentQuestions?.length > 0) {
+        const aq = data.assessmentQuestions.map((aq: { question: Question; order: number }) => ({
+          ...aq.question,
+          order: aq.order,
+        }));
+        setQuestions(aq);
+      } else {
+        // Backward compat: older assessment, fetch all questions
+        await fetchQuestions();
+      }
+
       // Start from server answers
       const existing: Record<string, { value: string; score: number | null }> = {};
       if (data.answers) {
@@ -183,7 +202,10 @@ export default function AssessmentsPage() {
       } catch { /* ignore corrupt localStorage */ }
 
       // Initialize unanswered SLIDER questions to default of 5
-      for (const q of questions) {
+      const currentQuestions = data.assessmentQuestions?.length > 0
+        ? data.assessmentQuestions.map((aq: { question: Question }) => aq.question)
+        : questions;
+      for (const q of currentQuestions) {
         if (q.type === "SLIDER" && !existing[q.id]) {
           existing[q.id] = { value: "5", score: 5 };
         }
@@ -206,6 +228,40 @@ export default function AssessmentsPage() {
       setSkippedQuestions(skipped);
     } catch {
       toast.error("Failed to load assessment");
+    }
+  };
+
+  const fetchBankQuestions = async () => {
+    try {
+      const res = await fetch("/api/questions");
+      if (!res.ok) throw new Error("Failed to fetch");
+      const data = await res.json();
+      setBankQuestions(data);
+    } catch {
+      toast.error("Failed to load question bank");
+    }
+  };
+
+  const handleAddQuestionToAssessment = async (questionId: string) => {
+    if (!activeAssessment) return;
+    setAddingQuestionId(questionId);
+    try {
+      const res = await fetch(`/api/assessments/${activeAssessment.id}/questions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questionId }),
+      });
+      if (!res.ok) throw new Error("Failed to add");
+      toast.success("Question added to assessment");
+      // Add the question to the local list
+      const newQ = bankQuestions.find((q) => q.id === questionId);
+      if (newQ) {
+        setQuestions((prev) => [...prev, newQ]);
+      }
+    } catch {
+      toast.error("Failed to add question");
+    } finally {
+      setAddingQuestionId(null);
     }
   };
 
@@ -411,11 +467,15 @@ export default function AssessmentsPage() {
     }
   };
 
-  const handleDeleteQuestion = async (questionId: string) => {
+  const handleRemoveQuestion = async (questionId: string) => {
+    if (!activeAssessment) return;
     setSavingQuestion(true);
     try {
-      const res = await fetch(`/api/questions?id=${questionId}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete");
+      const res = await fetch(
+        `/api/assessments/${activeAssessment.id}/questions?questionId=${questionId}`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) throw new Error("Failed to remove");
       setQuestions((prev) => prev.filter((q) => q.id !== questionId));
       // Also remove any local answers for this question
       setAnswers((prev) => {
@@ -429,9 +489,9 @@ export default function AssessmentsPage() {
         return next;
       });
       setQuestionToDelete(null);
-      toast.success("Question deleted");
+      toast.success("Question removed from assessment");
     } catch {
-      toast.error("Failed to delete question");
+      toast.error("Failed to remove question");
     } finally {
       setSavingQuestion(false);
     }
@@ -544,13 +604,30 @@ export default function AssessmentsPage() {
       {activeAssessment ? (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ClipboardCheck className="h-5 w-5" />
-              Complete Your Assessment
-            </CardTitle>
-            <CardDescription>
-              Rate each question on a scale of 0-10. Be honest for the best analysis.
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <ClipboardCheck className="h-5 w-5" />
+                  Complete Your Assessment
+                </CardTitle>
+                <CardDescription>
+                  {questions.length} questions — rate each on a scale of 0-10
+                </CardDescription>
+              </div>
+              {isAdmin && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    fetchBankQuestions();
+                    setShowBankDialog(true);
+                  }}
+                >
+                  <Library className="h-4 w-4 mr-1" />
+                  Add from Bank
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue={Object.keys(groupedQuestions)[0]}>
@@ -618,11 +695,11 @@ export default function AssessmentsPage() {
                                 <span className="inline-flex items-center gap-0.5 ml-1">
                                   <button
                                     type="button"
-                                    onClick={() => handleDeleteQuestion(q.id)}
+                                    onClick={() => handleRemoveQuestion(q.id)}
                                     disabled={savingQuestion}
                                     className="text-xs text-red-600 hover:text-red-800 font-medium"
                                   >
-                                    Confirm
+                                    Remove
                                   </button>
                                   <button
                                     type="button"
@@ -636,10 +713,11 @@ export default function AssessmentsPage() {
                                 <button
                                   type="button"
                                   onClick={() => setQuestionToDelete(q.id)}
-                                  className="text-xs text-red-400 hover:text-red-600 font-medium ml-1 inline-flex items-center gap-0.5"
+                                  className="text-xs text-orange-400 hover:text-orange-600 font-medium ml-1 inline-flex items-center gap-0.5"
+                                  title="Remove from this assessment"
                                 >
                                   <Trash2 className="w-3 h-3" />
-                                  Del
+                                  Remove
                                 </button>
                               )}
                             </>
@@ -1041,6 +1119,124 @@ export default function AssessmentsPage() {
             ))}
           </Tabs>
         </>
+      )}
+
+      {/* ─── Add from Bank Dialog ────────────────── */}
+      {showBankDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowBankDialog(false)}
+          />
+          <div className="relative z-10 bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-2xl mx-4 max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <Library className="w-5 h-5 text-blue-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Add Questions from Bank</h3>
+              </div>
+              <button
+                onClick={() => setShowBankDialog(false)}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Filters */}
+            <div className="px-6 py-3 border-b border-gray-100 flex-shrink-0 space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search questions..."
+                  value={bankSearch}
+                  onChange={(e) => setBankSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {["ALL", ...Object.keys(CATEGORY_LABELS)].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setBankCategory(cat)}
+                    className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+                      bankCategory === cat
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    {cat === "ALL" ? "All" : CATEGORY_LABELS[cat] || cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Question list */}
+            <div className="flex-1 overflow-y-auto px-6 py-3 space-y-1">
+              {bankQuestions
+                .filter((q) => {
+                  const matchSearch = !bankSearch ||
+                    q.text.toLowerCase().includes(bankSearch.toLowerCase());
+                  const matchCat = bankCategory === "ALL" || q.category === bankCategory;
+                  const notAlreadyInAssessment = !questions.some((aq) => aq.id === q.id);
+                  return matchSearch && matchCat && notAlreadyInAssessment;
+                })
+                .map((q) => (
+                  <div
+                    key={q.id}
+                    className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 border border-gray-100"
+                  >
+                    <div className="flex-1 min-w-0 mr-4">
+                      <p className="text-sm text-gray-900">{q.text}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-gray-400">
+                          {CATEGORY_LABELS[q.category] || q.category}
+                        </span>
+                        <span className="text-xs text-gray-300">{q.type}</span>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleAddQuestionToAssessment(q.id)}
+                      disabled={addingQuestionId === q.id}
+                    >
+                      {addingQuestionId === q.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Plus className="h-3 w-3" />
+                      )}
+                      <span className="ml-1">Add</span>
+                    </Button>
+                  </div>
+                ))}
+              {bankQuestions.filter((q) => {
+                const matchSearch = !bankSearch ||
+                  q.text.toLowerCase().includes(bankSearch.toLowerCase());
+                const matchCat = bankCategory === "ALL" || q.category === bankCategory;
+                const notAlreadyAdded = !questions.some((aq) => aq.id === q.id);
+                return matchSearch && matchCat && notAlreadyAdded;
+              }).length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-sm text-gray-500">
+                    {bankQuestions.length === 0
+                      ? "Loading question bank..."
+                      : "No matching questions found, or all are already in this assessment."}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-3 border-t border-gray-100 flex-shrink-0">
+              <button
+                onClick={() => setShowBankDialog(false)}
+                className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ─── Edit Question Dialog (admin) ─────────── */}

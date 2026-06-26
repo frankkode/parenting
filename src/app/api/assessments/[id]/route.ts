@@ -27,6 +27,14 @@ export async function GET(
           },
           orderBy: { createdAt: "asc" },
         },
+        assessmentQuestions: {
+          include: {
+            question: {
+              select: { id: true, text: true, category: true, subcategory: true, type: true, options: true, order: true },
+            },
+          },
+          orderBy: { order: "asc" },
+        },
       },
     });
 
