@@ -107,3 +107,68 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const user = await requireAuth();
+    const role = (user as { role: string }).role;
+    if (role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { id, name, email, password, role: newRole, phone, profession } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "id is required" }, { status: 400 });
+    }
+
+    const existing = await prisma.user.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // If email is changing, check it's not already taken
+    if (email && email !== existing.email) {
+      const emailTaken = await prisma.user.findUnique({ where: { email } });
+      if (emailTaken) {
+        return NextResponse.json(
+          { error: "A user with this email already exists" },
+          { status: 409 }
+        );
+      }
+    }
+
+    const data: Record<string, unknown> = {};
+    if (name !== undefined) data.name = name;
+    if (email !== undefined) data.email = email;
+    if (newRole !== undefined) data.role = newRole;
+    if (phone !== undefined) data.phone = phone || null;
+    if (profession !== undefined) data.profession = profession || null;
+    if (password) {
+      data.passwordHash = await bcrypt.hash(password, 12);
+    }
+
+    const updated = await prisma.user.update({
+      where: { id },
+      data,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        phone: true,
+        profession: true,
+        createdAt: true,
+      },
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("[USERS_PUT]", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

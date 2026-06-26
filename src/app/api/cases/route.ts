@@ -167,3 +167,38 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const user = await requireAuth();
+    const role = (user as { role: string }).role;
+    if (role !== "ADMIN" && role !== "MEDIATOR") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { id, mediatorId } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "id is required" }, { status: 400 });
+    }
+
+    const updated = await prisma.familyCase.update({
+      where: { id },
+      data: { mediatorId: mediatorId ?? null },
+      include: {
+        parentA: { select: { id: true, name: true, email: true } },
+        parentB: { select: { id: true, name: true, email: true } },
+        mediator: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("[CASES_PATCH]", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

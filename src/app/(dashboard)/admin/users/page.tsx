@@ -11,13 +11,7 @@ import {
   UserCog,
   Mail,
   Phone,
-  Calendar,
-  MoreHorizontal,
-  CheckCircle2,
-  XCircle,
   Loader2,
-  ChevronDown,
-  AlertTriangle,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -32,62 +26,7 @@ interface UserData {
   phone: string | null;
   profession: string | null;
   createdAt: string;
-  active: boolean;
 }
-
-// ---------- Mock Data ----------
-const mockUsers: UserData[] = [
-  {
-    id: "1",
-    name: "John Smith",
-    email: "john.smith@example.com",
-    role: "PARENT",
-    phone: "+1 (555) 123-4567",
-    profession: "Software Engineer",
-    createdAt: new Date(Date.now() - 90 * 86400000).toISOString(),
-    active: true,
-  },
-  {
-    id: "2",
-    name: "Jane Smith",
-    email: "jane.smith@example.com",
-    role: "PARENT",
-    phone: "+1 (555) 987-6543",
-    profession: "Teacher",
-    createdAt: new Date(Date.now() - 85 * 86400000).toISOString(),
-    active: true,
-  },
-  {
-    id: "3",
-    name: "Dr. Sarah Johnson",
-    email: "sarah.j@example.com",
-    role: "MEDIATOR",
-    phone: "+1 (555) 456-7890",
-    profession: "Family Mediator",
-    createdAt: new Date(Date.now() - 120 * 86400000).toISOString(),
-    active: true,
-  },
-  {
-    id: "4",
-    name: "Admin User",
-    email: "admin@example.com",
-    role: "ADMIN",
-    phone: null,
-    profession: null,
-    createdAt: new Date(Date.now() - 365 * 86400000).toISOString(),
-    active: true,
-  },
-  {
-    id: "5",
-    name: "Michael Brown",
-    email: "michael.b@example.com",
-    role: "PARENT",
-    phone: "+1 (555) 222-3333",
-    profession: "Architect",
-    createdAt: new Date(Date.now() - 60 * 86400000).toISOString(),
-    active: false,
-  },
-];
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserData[]>([]);
@@ -97,6 +36,7 @@ export default function AdminUsersPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Create form
   const [createName, setCreateName] = useState("");
@@ -111,30 +51,27 @@ export default function AdminUsersPage() {
   const [editPassword, setEditPassword] = useState("");
   const [editPhone, setEditPhone] = useState("");
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const loadUsers = useCallback(() => {
+  const loadUsers = useCallback(async () => {
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setUsers(mockUsers);
+    try {
+      const params = new URLSearchParams();
+      if (roleFilter !== "ALL") params.set("role", roleFilter);
+      if (searchQuery) params.set("search", searchQuery);
+
+      const res = await fetch(`/api/users?${params.toString()}`);
+      if (!res.ok) throw new Error("Failed to fetch users");
+      const data = await res.json();
+      setUsers(data);
+    } catch {
+      toast.error("Failed to load users");
+    } finally {
       setLoading(false);
-    }, 500);
-  }, []);
+    }
+  }, [roleFilter, searchQuery]);
 
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
-
-  // Filter users
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      !searchQuery ||
-      user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = roleFilter === "ALL" || user.role === roleFilter;
-    return matchesSearch && matchesRole;
-  });
 
   const roleCounts = {
     total: users.length,
@@ -149,59 +86,67 @@ export default function AdminUsersPage() {
       return;
     }
     setIsSubmitting(true);
-    // Simulate API call
-    await new Promise((r) => setTimeout(r, 1000));
-    const newUser: UserData = {
-      id: Math.random().toString(36).substring(7),
-      name: createName,
-      email: createEmail,
-      role: createRole,
-      phone: null,
-      profession: null,
-      createdAt: new Date().toISOString(),
-      active: true,
-    };
-    setUsers((prev) => [newUser, ...prev]);
-    setIsSubmitting(false);
-    setShowCreateDialog(false);
-    setCreateName("");
-    setCreateEmail("");
-    setCreatePassword("");
-    setCreateRole("PARENT");
-    toast.success("User created successfully");
+    try {
+      const res = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: createName,
+          email: createEmail,
+          password: createPassword,
+          role: createRole,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to create user");
+      }
+      toast.success("User created successfully");
+      setShowCreateDialog(false);
+      setCreateName("");
+      setCreateEmail("");
+      setCreatePassword("");
+      setCreateRole("PARENT");
+      loadUsers();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create user");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleEditUser = async () => {
     if (!editingUser) return;
     setIsSubmitting(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    if (editPassword) {
-      toast.success("Password reset successfully");
-    }
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === editingUser.id
-          ? { ...u, name: editName, email: editEmail, role: editRole, phone: editPhone }
-          : u
-      )
-    );
-    setIsSubmitting(false);
-    setShowEditDialog(false);
-    setEditingUser(null);
-    toast.success("User updated successfully");
-  };
+    try {
+      const body: Record<string, unknown> = {
+        id: editingUser.id,
+        name: editName,
+        email: editEmail,
+        role: editRole,
+        phone: editPhone,
+      };
+      if (editPassword) body.password = editPassword;
 
-  const handleToggleActive = async (user: UserData) => {
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === user.id ? { ...u, active: !u.active } : u
-      )
-    );
-    toast.success(
-      user.active
-        ? "User deactivated successfully"
-        : "User activated successfully"
-    );
+      const res = await fetch("/api/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to update user");
+      }
+      if (editPassword) toast.success("Password reset successfully");
+      toast.success("User updated successfully");
+      setShowEditDialog(false);
+      setEditingUser(null);
+      loadUsers();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update user");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const openEditDialog = (user: UserData) => {
@@ -213,6 +158,8 @@ export default function AdminUsersPage() {
     setEditPassword("");
     setShowEditDialog(true);
   };
+
+  const filteredUsers = users;
 
   return (
     <div className="space-y-6">
@@ -309,9 +256,6 @@ export default function AdminUsersPage() {
                   <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Joined
                   </th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
                   <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
@@ -365,39 +309,13 @@ export default function AdminUsersPage() {
                     <td className="px-5 py-4 text-sm text-gray-500">
                       {formatDate(user.createdAt)}
                     </td>
-                    <td className="px-5 py-4">
-                      {user.active ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-100 px-2.5 py-0.5 rounded-full">
-                          <XCircle className="w-3 h-3" />
-                          Inactive
-                        </span>
-                      )}
-                    </td>
                     <td className="px-5 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openEditDialog(user)}
-                          className="text-sm font-medium text-blue-600 hover:text-blue-700"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleToggleActive(user)}
-                          className={cn(
-                            "text-sm font-medium",
-                            user.active
-                              ? "text-red-600 hover:text-red-700"
-                              : "text-emerald-600 hover:text-emerald-700"
-                          )}
-                        >
-                          {user.active ? "Deactivate" : "Activate"}
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => openEditDialog(user)}
+                        className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                      >
+                        Edit
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -414,7 +332,7 @@ export default function AdminUsersPage() {
           <p className="text-sm text-gray-500 max-w-sm mx-auto">
             {searchQuery
               ? "No users match your search criteria. Try adjusting your filters."
-              : "No users have been created yet. Click &quot;Create User&quot; to add one."}
+              : "No users have been created yet. Click \"Create User\" to add one."}
           </p>
         </div>
       )}
