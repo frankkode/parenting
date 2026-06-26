@@ -14,6 +14,7 @@ import {
   AlertCircle,
   Activity,
 } from "lucide-react";
+import DashboardWishes from "@/components/dashboard-wishes";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -292,6 +293,11 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Wishes — only for parents */}
+      {!isAdmin && (
+        <DashboardWishes currentUserId={user.id} />
+      )}
 
       {/* Quick actions */}
       <div>

@@ -7,22 +7,39 @@ export async function GET(request: NextRequest) {
     await requireAuth();
     const { searchParams } = new URL(request.url);
     const caseId = searchParams.get("caseId");
+    const userId = searchParams.get("userId");
 
-    if (!caseId) {
-      return NextResponse.json({ error: "caseId is required" }, { status: 400 });
+    if (!caseId && !userId) {
+      return NextResponse.json({ error: "caseId or userId is required" }, { status: 400 });
+    }
+
+    let where: any = {};
+    if (caseId) {
+      where.familyCaseId = caseId;
+    }
+    if (userId) {
+      // Get all wishes from cases where this user is a parent
+      const userCases = await prisma.familyCase.findMany({
+        where: {
+          OR: [{ parentAId: userId }, { parentBId: userId }],
+        },
+        select: { id: true },
+      });
+      where.familyCaseId = { in: userCases.map((c) => c.id) };
     }
 
     const wishes = await prisma.coparentingWish.findMany({
-      where: { familyCaseId: caseId },
+      where,
       include: {
         author: { select: { id: true, name: true, email: true } },
+        familyCase: { select: { id: true, title: true } },
         responses: {
           include: {
             user: { select: { id: true, name: true, email: true } },
           },
         },
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
     });
 
     return NextResponse.json(wishes);
