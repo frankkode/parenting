@@ -26,6 +26,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import ParentStatementAnalysis from "@/components/parent-statement-analysis";
+import CoparentingWishes from "@/components/coparenting-wishes";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, Legend,
@@ -99,13 +100,13 @@ export default function AnalysisPage() {
   const caseId = params.id as string;
 
   const { data: session, status } = useSession();
-  const user = session?.user as { role: string } | undefined;
+  const user = session?.user as { id: string; role: string } | undefined;
   const isAdmin = user?.role === "ADMIN" || user?.role === "MEDIATOR";
+  const currentUserId = user?.id || "";
 
-  // Redirect non-admin users
+  // Allow all authenticated users (parents view wishes, admins view all)
   useEffect(() => {
-    if (status === "authenticated" && !isAdmin) {
-      router.push("/dashboard");
+    if (status === "authenticated" && !user) {
     }
   }, [status, isAdmin, router]);
 
@@ -302,16 +303,22 @@ export default function AnalysisPage() {
       </Card>
 
       {/* Detailed Tabs */}
-      <Tabs defaultValue="assessments">
+      <Tabs defaultValue={isAdmin ? "assessments" : "wishes"}>
         <TabsList>
-          <TabsTrigger value="assessments">Assessments</TabsTrigger>
-          <TabsTrigger value="agreements">Agreements</TabsTrigger>
-          <TabsTrigger value="responsibilities">Responsibilities</TabsTrigger>
-          <TabsTrigger value="conflict">Conflict Resolution</TabsTrigger>
-          <TabsTrigger value="statements">Parent Statements</TabsTrigger>
+          {isAdmin && (
+            <>
+              <TabsTrigger value="assessments">Assessments</TabsTrigger>
+              <TabsTrigger value="agreements">Agreements</TabsTrigger>
+              <TabsTrigger value="responsibilities">Responsibilities</TabsTrigger>
+              <TabsTrigger value="conflict">Conflict Resolution</TabsTrigger>
+              <TabsTrigger value="statements">Parent Statements</TabsTrigger>
+            </>
+          )}
+          <TabsTrigger value="wishes">Wishes</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="assessments" className="space-y-4 mt-4">
+        {isAdmin && (<>
+          <TabsContent value="assessments" className="space-y-4 mt-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -625,6 +632,11 @@ export default function AnalysisPage() {
 
         <TabsContent value="statements" className="mt-4">
           <ParentStatementAnalysis caseId={caseId} isAdmin={isAdmin} />
+        </TabsContent>
+        </> )}
+
+        <TabsContent value="wishes" className="mt-4">
+          <CoparentingWishes caseId={caseId} currentUserId={currentUserId} isAdmin={isAdmin} />
         </TabsContent>
       </Tabs>
     </div>

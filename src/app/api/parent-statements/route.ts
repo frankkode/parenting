@@ -54,6 +54,72 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Auto-generate wishes from the analysis
+    if (analysis) {
+      try {
+        const parsed = typeof analysis === "string" ? JSON.parse(analysis) : analysis;
+        const wishesToCreate: { content: string; category: string }[] = [];
+
+        // Extract from key concerns
+        if (parsed.keyConcerns && Array.isArray(parsed.keyConcerns)) {
+          for (const concern of parsed.keyConcerns) {
+            if (concern.points && Array.isArray(concern.points)) {
+              for (const pt of concern.points) {
+                wishesToCreate.push({ content: pt, category: concern.category || "EMOTIONAL_READINESS" });
+              }
+            }
+            if (concern.label && concern.label !== concern.points?.[0]) {
+              wishesToCreate.push({ content: concern.label, category: concern.category || "EMOTIONAL_READINESS" });
+            }
+          }
+        }
+
+        // Extract from proposed solutions
+        if (parsed.proposedSolutions && Array.isArray(parsed.proposedSolutions)) {
+          for (const sol of parsed.proposedSolutions) {
+            if (sol.points && Array.isArray(sol.points)) {
+              for (const pt of sol.points) {
+                wishesToCreate.push({ content: pt, category: sol.category || "CHILDCARE_CAPACITY" });
+              }
+            }
+          }
+        }
+
+        // Extract from agreement proposals (titles are good wish statements)
+        if (parsed.agreementProposals && Array.isArray(parsed.agreementProposals)) {
+          for (const prop of parsed.agreementProposals) {
+            if (prop.title) {
+              wishesToCreate.push({ content: prop.title, category: prop.category || "FINANCIAL_CAPACITY" });
+            }
+          }
+        }
+
+        // Deduplicate and create
+        const seen = new Set<string>();
+        const unique = wishesToCreate.filter((w) => {
+          const key = w.content.toLowerCase().trim();
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+
+        if (unique.length > 0) {
+          await prisma.coparentingWish.createMany({
+            data: unique.map((w) => ({
+              familyCaseId,
+              authorId: (user as { id: string }).id,
+              content: w.content,
+              category: w.category,
+              source: "STATEMENT",
+            })),
+          });
+        }
+      } catch (err) {
+        console.error("[PARENT_STATEMENTS_POST] Failed to auto-generate wishes:", err);
+        // Don't fail the request — wishes are best-effort
+      }
+    }
+
     return NextResponse.json(statement, { status: 201 });
   } catch (error) {
     console.error("[PARENT_STATEMENTS_POST]", error);

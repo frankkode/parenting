@@ -40,6 +40,8 @@ model User {
   auditLogs           AuditLog[]
   growthRecords       GrowthRecord[]
   parentStatements    ParentStatement[]
+  wishResponses       WishResponse[]
+  authoredWishes      CoparentingWish[] @relation("AuthoredWishes")
   accounts            Account[]
   sessions            Session[]
 }
@@ -102,6 +104,7 @@ model FamilyCase {
   sharedNotes    SharedNote[]
   reports        Report[]
   parentStatements ParentStatement[]
+  coparentingWishes CoparentingWish[]
   responsibilityItems ResponsibilityItem[]
   aiRecommendations  AIRecommendation[]
   auditLogs      AuditLog[]
@@ -311,6 +314,36 @@ model ParentStatement {
 
   familyCase   FamilyCase @relation(fields: [familyCaseId], references: [id], onDelete: Cascade)
   user         User       @relation(fields: [userId], references: [id])
+}
+
+model CoparentingWish {
+  id           String   @id @default(cuid())
+  familyCaseId String
+  authorId     String
+  content      String
+  category     String
+  source       String   @default("STATEMENT")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  familyCase   FamilyCase     @relation(fields: [familyCaseId], references: [id], onDelete: Cascade)
+  author       User           @relation("AuthoredWishes", fields: [authorId], references: [id])
+  responses    WishResponse[]
+}
+
+model WishResponse {
+  id        String   @id @default(cuid())
+  wishId    String
+  userId    String
+  agreement Int
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  wish      CoparentingWish @relation(fields: [wishId], references: [id], onDelete: Cascade)
+  user      User            @relation(fields: [userId], references: [id])
+
+  @@unique([wishId, userId])
 }
 
 model Report {
