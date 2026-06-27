@@ -4,6 +4,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import CreateAgreementButton from "@/components/create-agreement-button";
 import {
   FileText,
   CheckCircle2,
@@ -58,11 +59,14 @@ export default async function AgreementsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Agreements</h1>
-        <p className="text-gray-500 mt-1">
-          View and manage agreements across all your cases.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Agreements</h1>
+          <p className="text-gray-500 mt-1">
+            View and manage agreements across all your cases.
+          </p>
+        </div>
+        {isAdmin && <CreateAgreementButton />}
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">

@@ -23,6 +23,7 @@ import {
 import {
   Loader2, Plus, BarChart3, ClipboardCheck, CheckCircle2, Clock,
   AlertCircle, TrendingUp, X, Pencil, Trash2, Search, Library,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -86,6 +87,7 @@ export default function AssessmentsPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [publishing, setPublishing] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -162,6 +164,25 @@ export default function AssessmentsPage() {
       toast.error("Failed to create assessment");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleResetAnswers = async () => {
+    if (!confirm("Are you sure? This will delete ALL answers from ALL assessments in this case. This action cannot be undone.")) return;
+    try {
+      setResetting(true);
+      const res = await fetch(`/api/cases/${caseId}/reset-answers`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to reset");
+      const data = await res.json();
+      toast.success(`Reset ${data.deletedAnswers} answers across ${data.resetAssessments} assessments`);
+      setActiveAssessment(null);
+      setAnswers({});
+      setSkippedQuestions(new Set());
+      fetchAssessments();
+    } catch {
+      toast.error("Failed to reset answers");
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -600,10 +621,16 @@ export default function AssessmentsPage() {
           </p>
         </div>
         {isAdmin && (
-          <Button onClick={handleCreateAssessment} disabled={creating}>
-            {creating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
-            New Assessment
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={handleCreateAssessment} disabled={creating}>
+              {creating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+              New Assessment
+            </Button>
+            <Button variant="destructive" size="sm" onClick={handleResetAnswers} disabled={resetting}>
+              {resetting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-1" />}
+              Reset All Answers
+            </Button>
+          </div>
         )}
       </div>
 
