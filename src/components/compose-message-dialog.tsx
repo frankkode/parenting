@@ -12,7 +12,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import { Loader2, Send, Plus } from "lucide-react";
+import { Loader2, Send, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 
 interface CaseOption {
@@ -55,21 +55,30 @@ export default function ComposeMessageDialog() {
   }
 
   const handleSend = async () => {
-    if (!selectedCaseId || !recipientId || !content.trim()) {
+    if (!selectedCaseId || (!recipientId && !isBothParents) || !content.trim()) {
       toast.error("Please fill in all required fields");
       return;
     }
     setSending(true);
     try {
+      const body: any = {
+        familyCaseId: selectedCaseId,
+        subject: subject || undefined,
+        content,
+      };
+
+      if (recipientId === "__both__") {
+        body.recipientIds = recipients
+          .filter((r) => r.id !== selectedCase?.mediator?.id)
+          .map((r) => r.id);
+      } else {
+        body.recipientId = recipientId;
+      }
+
       const res = await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          familyCaseId: selectedCaseId,
-          recipientId,
-          subject: subject || undefined,
-          content,
-        }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error("Failed to send");
       toast.success("Message sent");
@@ -84,6 +93,8 @@ export default function ComposeMessageDialog() {
       setSending(false);
     }
   };
+
+  const isBothParents = recipientId === "__both__";
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -124,6 +135,12 @@ export default function ComposeMessageDialog() {
                   <SelectValue placeholder="Select recipient..." />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__both__">
+                    <span className="flex items-center gap-1">
+                      <Users className="h-3.5 w-3.5" />
+                      Both Parents
+                    </span>
+                  </SelectItem>
                   {recipients.map((r) => (
                     <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
                   ))}

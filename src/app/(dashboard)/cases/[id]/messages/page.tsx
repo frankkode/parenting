@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +49,8 @@ interface Message {
 export default function MessagesPage() {
   const params = useParams();
   const caseId = params.id as string;
+  const { data: session } = useSession();
+  const currentUserId = (session?.user as { id: string })?.id || "";
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +58,6 @@ export default function MessagesPage() {
   const [newMessage, setNewMessage] = useState("");
   const [newSubject, setNewSubject] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [currentUserId, setCurrentUserId] = useState<string>("");
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -72,23 +74,9 @@ export default function MessagesPage() {
     }
   }, [caseId]);
 
-  const fetchCurrentUser = useCallback(async () => {
-    try {
-      const res = await fetch("/api/users");
-      if (!res.ok) return;
-      const users = await res.json();
-      if (users.length > 0) {
-        setCurrentUserId(users[0]?.id || "");
-      }
-    } catch {
-      // Will get from session later
-    }
-  }, []);
-
   useEffect(() => {
     fetchMessages();
-    fetchCurrentUser();
-  }, [fetchMessages, fetchCurrentUser]);
+  }, [fetchMessages]);
 
   useEffect(() => {
     if (scrollRef.current) {
