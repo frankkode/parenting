@@ -4,21 +4,28 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth();
+    const authUser = await requireAuth();
+    const currentUser = authUser as { id: string; role: string };
     const { searchParams } = new URL(request.url);
     const caseId = searchParams.get("caseId");
     const userId = searchParams.get("userId");
-
-    if (!caseId && !userId) {
-      return NextResponse.json({ error: "caseId or userId is required" }, { status: 400 });
-    }
+    const isStaff = currentUser.role === "ADMIN" || currentUser.role === "MEDIATOR";
 
     let where: any = {};
+
     if (caseId) {
       where.familyCaseId = caseId;
-    }
-    if (userId) {
-      // Get all wishes from cases where this user is a parent
+    } else if (userId && !isStaff) {
+      // Parent: get wishes from their own cases
+      const userCases = await prisma.familyCase.findMany({
+        where: {
+          OR: [{ parentAId: userId }, { parentBId: userId }],
+        },
+        select: { id: true },
+      });
+      where.familyCaseId = { in: userCases.map((c) => c.id) };
+    } else if (userId && isStaff) {
+      // Staff viewing a specific user's wishes
       const userCases = await prisma.familyCase.findMany({
         where: {
           OR: [{ parentAId: userId }, { parentBId: userId }],
@@ -27,6 +34,7 @@ export async function GET(request: NextRequest) {
       });
       where.familyCaseId = { in: userCases.map((c) => c.id) };
     }
+    // If no filters and isStaff: return all wishes (where stays {})
 
     const wishes = await prisma.coparentingWish.findMany({
       where,

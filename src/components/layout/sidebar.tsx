@@ -34,6 +34,7 @@ const navItems = [
   { href: "/messages", label: "Messages", icon: MessageSquare },
   { href: "/agreements", label: "Agreements", icon: FileText },
   { href: "/assessments", label: "Assessments", icon: ClipboardCheck },
+  { href: "/wishes", label: "Wishes", icon: Heart },
   { href: "/help-requests", label: "Help Requests", icon: HelpCircle },
   { href: "/reports", label: "Reports", icon: BarChart3 },
 ];
