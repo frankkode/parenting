@@ -20,10 +20,11 @@ import {
   Scale,
   Activity,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface SidebarProps {
   role?: string;
+  userId?: string;
   onNavClick?: () => void;
 }
 
@@ -52,13 +53,44 @@ const mediatorItems = [
   { href: "/mediator", label: "Mediator Dashboard", icon: Scale },
 ];
 
-export function Sidebar({ role, onNavClick }: SidebarProps) {
+export function Sidebar({ role, userId, onNavClick }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [counts, setCounts] = useState({
+    unsignedAgreements: 0,
+    unreadMessages: 0,
+    pendingAssessments: 0,
+  });
 
   const isAdmin = role === "ADMIN";
   const isMediator = role === "MEDIATOR";
   const isElevated = isAdmin || isMediator;
+  const isParent = role === "PARENT";
+
+  // Fetch pending counts for parents
+  useEffect(() => {
+    if (!isParent || !userId) return;
+    fetch("/api/notifications/pending-counts")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.error) setCounts(data);
+      })
+      .catch(() => {});
+  }, [isParent, userId]);
+
+  const getBadge = (href: string) => {
+    if (!isParent) return null;
+    let count = 0;
+    if (href === "/agreements") count = counts.unsignedAgreements;
+    else if (href === "/messages") count = counts.unreadMessages;
+    else if (href === "/assessments") count = counts.pendingAssessments;
+    if (count === 0) return null;
+    return (
+      <span className="ml-auto flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold">
+        {count}
+      </span>
+    );
+  };
 
   return (
     <aside
@@ -95,6 +127,8 @@ export function Sidebar({ role, onNavClick }: SidebarProps) {
           const Icon = item.icon;
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/");
+          const badge = getBadge(item.href);
+
           return (
             <Link
               key={item.href}
@@ -109,7 +143,15 @@ export function Sidebar({ role, onNavClick }: SidebarProps) {
               )}
             >
               <Icon className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
+              {!collapsed && (
+                <>
+                  <span>{item.label}</span>
+                  {badge}
+                </>
+              )}
+              {collapsed && badge && (
+                <span className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-red-500" />
+              )}
             </Link>
           );
         })}

@@ -458,6 +458,19 @@ export default function AgreementsPage() {
 
               <Separator />
 
+              {/* Needs Signature Warning */}
+              {!isAdmin && !hasUserSigned(viewingAgreement) && (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+                  <PenLine className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">This agreement needs your signature</p>
+                    <p className="text-xs text-amber-700 mt-0.5">
+                      Please scroll down to sign this agreement by typing your full legal name. The agreement is not finalized until both parents have signed.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Signatures Section */}
               <div>
                 <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
@@ -544,8 +557,8 @@ export default function AgreementsPage() {
               </div>
 
               <DialogFooter className="gap-2 flex-wrap">
-                {/* PDF download - available when signed */}
-                {(viewingAgreement.status === "signed" || viewingAgreement.signatures?.length > 0) && (
+                {/* PDF download - only when both parents have signed */}
+                {allPartiesHaveSigned(viewingAgreement) && (
                   <Button
                     variant="outline"
                     onClick={() => handleDownloadPdf(viewingAgreement.id)}
@@ -649,6 +662,11 @@ export default function AgreementsPage() {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
+              {!isAdmin && !hasUserSigned(agreement) && (
+                <Badge variant="warning" className="text-xs">
+                  Needs your signature
+                </Badge>
+              )}
               {agreement.signatures && agreement.signatures.length > 0 && (
                 <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-200">
                   {agreement.signatures.length} signed

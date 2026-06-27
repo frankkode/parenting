@@ -39,6 +39,7 @@ export default function DashboardLayout({
   }
 
   const user = session.user as {
+    id?: string;
     name?: string | null;
     email?: string | null;
     image?: string | null;
@@ -66,6 +67,7 @@ export default function DashboardLayout({
       >
         <Sidebar
           role={user.role}
+          userId={user.id}
           onNavClick={handleNavClick}
         />
       </div>
