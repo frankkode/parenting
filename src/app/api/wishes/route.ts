@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     const user = await requireAuth();
     const currentUser = user as { id: string; role: string };
     const body = await request.json();
-    const { familyCaseId, content, category, source } = body;
+    const { familyCaseId, content, category, source, authorId } = body;
 
     if (!familyCaseId || !content || !category) {
       return NextResponse.json(
@@ -71,10 +71,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const isStaff = currentUser.role === "ADMIN" || currentUser.role === "MEDIATOR";
+
+    // Admin/mediator can set the author to a parent in the case
+    const finalAuthorId = isStaff && authorId ? authorId : currentUser.id;
+
     const wish = await prisma.coparentingWish.create({
       data: {
         familyCaseId,
-        authorId: currentUser.id,
+        authorId: finalAuthorId,
         content,
         category,
         source: source || "MANUAL",

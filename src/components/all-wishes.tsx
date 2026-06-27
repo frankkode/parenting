@@ -9,8 +9,11 @@ import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
   Heart, Loader2, User, Send, CheckCircle2, MessageSquare,
-  Trash2, ExternalLink,
+  Trash2, ExternalLink, Plus, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, formatDate } from "@/lib/utils";
@@ -35,10 +38,26 @@ interface Wish {
   responses: WishResponse[];
 }
 
+interface CaseOption {
+  id: string;
+  title: string;
+  parentA: { id: string; name: string | null };
+  parentB: { id: string; name: string | null };
+}
+
 interface Props {
   currentUserId: string;
   isAdmin: boolean;
 }
+
+const CATEGORIES = [
+  { value: "CHILDCARE_CAPACITY", label: "Childcare" },
+  { value: "FINANCIAL_CAPACITY", label: "Financial" },
+  { value: "EMOTIONAL_READINESS", label: "Emotional" },
+  { value: "CHILD_WELLBEING", label: "Wellbeing" },
+  { value: "LIVING_SITUATION", label: "Living" },
+  { value: "WORK_SITUATION", label: "Work" },
+];
 
 const CATEGORY_LABELS: Record<string, string> = {
   LIVING_SITUATION: "Living",
@@ -58,6 +77,15 @@ export default function AllWishesPage({ currentUserId, isAdmin }: Props) {
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Create wish state
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [cases, setCases] = useState<CaseOption[]>([]);
+  const [selectedCaseId, setSelectedCaseId] = useState("");
+  const [selectedParentId, setSelectedParentId] = useState("");
+  const [newContent, setNewContent] = useState("");
+  const [newCategory, setNewCategory] = useState("CHILDCARE_CAPACITY");
+  const [creatingWish, setCreatingWish] = useState(false);
+
   const fetchWishes = useCallback(async () => {
     setLoading(true);
     try {
@@ -73,9 +101,60 @@ export default function AllWishesPage({ currentUserId, isAdmin }: Props) {
     }
   }, [currentUserId, isAdmin]);
 
+  const fetchCases = useCallback(async () => {
+    try {
+      const url = isAdmin ? "/api/cases" : `/api/cases`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch cases");
+      const data = await res.json();
+      setCases(data);
+      if (data.length > 0) {
+        setSelectedCaseId(data[0].id);
+        setSelectedParentId(data[0].parentA?.id || "");
+      }
+    } catch {
+      // Silently fail — case selector will be empty
+    }
+  }, [isAdmin]);
+
   useEffect(() => {
     fetchWishes();
-  }, [fetchWishes]);
+    fetchCases();
+  }, [fetchWishes, fetchCases]);
+
+  const handleCreateWish = async () => {
+    if (!selectedCaseId || !newContent.trim()) {
+      toast.error("Please select a case and enter wish content");
+      return;
+    }
+    setCreatingWish(true);
+    try {
+      const res = await fetch("/api/wishes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          familyCaseId: selectedCaseId,
+          authorId: selectedParentId || undefined,
+          content: newContent.trim(),
+          category: newCategory,
+          source: "MANUAL",
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to create wish");
+      }
+      toast.success("Wish created");
+      setShowCreateForm(false);
+      setNewContent("");
+      setNewCategory("CHILDCARE_CAPACITY");
+      fetchWishes();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create wish");
+    } finally {
+      setCreatingWish(false);
+    }
+  };
 
   const handleSubmitResponse = async (wishId: string) => {
     setSubmitting(true);
@@ -141,19 +220,120 @@ export default function AllWishesPage({ currentUserId, isAdmin }: Props) {
     wishesByCase[cid].wishes.push(w);
   }
 
+  const selectedCase = cases.find((c) => c.id === selectedCaseId);
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <Heart className="h-6 w-6 text-rose-500" />
-          Co-Parenting Wishes
-        </h1>
-        <p className="text-gray-500 mt-1">
-          {isAdmin
-            ? "All wishes from all cases. Monitor co-parenting alignment."
-            : "Review and respond to your co-parent's wishes. Rate your agreement and leave comments."}
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <Heart className="h-6 w-6 text-rose-500" />
+            Co-Parenting Wishes
+          </h1>
+          <p className="text-gray-500 mt-1">
+            {isAdmin
+              ? "All wishes from all cases. Monitor co-parenting alignment."
+              : "Review and respond to your co-parent's wishes. Rate your agreement and leave comments."}
+          </p>
+        </div>
+        {isAdmin && (
+          <Button onClick={() => setShowCreateForm(!showCreateForm)} size="sm">
+            <Plus className="h-4 w-4 mr-1" />
+            New Wish
+          </Button>
+        )}
       </div>
+
+      {/* Create Wish Form */}
+      {showCreateForm && isAdmin && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center justify-between">
+              <span>Add a Co-Parenting Wish</span>
+              <Button variant="ghost" size="sm" onClick={() => setShowCreateForm(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </CardTitle>
+            <CardDescription>
+              Manually add a wish extracted from a parent's statement so the other parent can respond.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Case</label>
+                <Select value={selectedCaseId} onValueChange={(v) => {
+                  setSelectedCaseId(v);
+                  const c = cases.find((c) => c.id === v);
+                  if (c) setSelectedParentId(c.parentA?.id || "");
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a case..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cases.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.title} ({c.parentA?.name || "Parent A"} & {c.parentB?.name || "Parent B"})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">From Parent</label>
+                <Select value={selectedParentId} onValueChange={setSelectedParentId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select parent..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {selectedCase && (
+                      <>
+                        <SelectItem value={selectedCase.parentA?.id || ""}>
+                          {selectedCase.parentA?.name || "Parent A"}
+                        </SelectItem>
+                        <SelectItem value={selectedCase.parentB?.id || ""}>
+                          {selectedCase.parentB?.name || "Parent B"}
+                        </SelectItem>
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="sm:col-span-2">
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Category</label>
+                <Select value={newCategory} onValueChange={setNewCategory}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((cat) => (
+                      <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Wish Content</label>
+              <Textarea
+                placeholder="Enter the wish or concern the parent expressed..."
+                value={newContent}
+                onChange={(e) => setNewContent(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowCreateForm(false)}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleCreateWish} disabled={creatingWish}>
+                {creatingWish ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+                Create Wish
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {wishes.length === 0 ? (
         <Card>
