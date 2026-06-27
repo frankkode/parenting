@@ -395,7 +395,7 @@ export default async function AdminDashboardPage() {
           Monthly New Cases
           {avgAgreementScore > 0 && (
             <span className="text-sm font-normal text-gray-500 ml-2">
-              &middot; Average Assessment Score: {avgAgreementScore}/100
+              &middot; Average Assessment Score: {avgAgreementScore}/10
             </span>
           )}
         </h3>

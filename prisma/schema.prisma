@@ -42,6 +42,7 @@ model User {
   parentStatements    ParentStatement[]
   wishResponses       WishResponse[]
   authoredWishes      CoparentingWish[] @relation("AuthoredWishes")
+  agreementSignatures AgreementSignature[]
   accounts            Account[]
   sessions            Session[]
 }
@@ -243,6 +244,21 @@ model Agreement {
   familyCase   FamilyCase @relation(fields: [familyCaseId], references: [id], onDelete: Cascade)
   createdBy    User       @relation("CreatedBy", fields: [createdById], references: [id])
   versions     AgreementVersion[]
+  signatures   AgreementSignature[]
+}
+
+model AgreementSignature {
+  id          String   @id @default(cuid())
+  agreementId String
+  userId      String
+  fullName    String
+  role        String
+  createdAt   DateTime @default(now())
+
+  agreement   Agreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@unique([agreementId, userId])
 }
 
 model AgreementVersion {

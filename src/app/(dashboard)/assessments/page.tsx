@@ -72,7 +72,7 @@ export default async function AssessmentsPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <BarChart3 className="w-5 h-5 text-violet-600 mb-2" />
           <p className="text-2xl font-bold text-violet-600">
-            {averageScore !== null ? `${averageScore}/100` : "N/A"}
+            {averageScore !== null ? `${averageScore}/10` : "N/A"}
           </p>
           <p className="text-sm text-gray-500">Average Score</p>
         </div>
@@ -123,19 +123,19 @@ export default async function AssessmentsPage() {
                   {assessment.score !== null && (
                     <>
                       <Progress
-                        value={assessment.score}
+                        value={assessment.score * 10}
                         className="w-24 h-2"
                       />
                       <span
                         className={`text-sm font-semibold ${
-                          assessment.score >= 70
+                          assessment.score >= 7
                             ? "text-emerald-600"
-                            : assessment.score >= 40
+                            : assessment.score >= 4
                             ? "text-amber-600"
                             : "text-red-600"
                         }`}
                       >
-                        {assessment.score}/100
+                        {assessment.score}/10
                       </span>
                     </>
                   )}

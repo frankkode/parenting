@@ -13,10 +13,21 @@ export async function GET(
     const agreement = await prisma.agreement.findUnique({
       where: { id },
       include: {
-        familyCase: { select: { id: true, title: true } },
+        familyCase: {
+          select: {
+            id: true,
+            title: true,
+            parentAId: true,
+            parentBId: true,
+            parentA: { select: { id: true, name: true, email: true } },
+            parentB: { select: { id: true, name: true, email: true } },
+          },
+        },
         createdBy: { select: { id: true, name: true, email: true, image: true } },
-        versions: {
-          orderBy: { version: "desc" },
+        versions: { orderBy: { version: "desc" } },
+        signatures: {
+          include: { user: { select: { id: true, name: true, email: true } } },
+          orderBy: { createdAt: "asc" },
         },
       },
     });
@@ -79,6 +90,10 @@ export async function PATCH(
       data: updateData,
       include: {
         createdBy: { select: { id: true, name: true, email: true } },
+        signatures: {
+          include: { user: { select: { id: true, name: true, email: true } } },
+          orderBy: { createdAt: "asc" },
+        },
       },
     });
 

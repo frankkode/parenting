@@ -25,6 +25,10 @@ export async function GET(request: NextRequest) {
         createdBy: {
           select: { id: true, name: true, email: true, image: true },
         },
+        signatures: {
+          include: { user: { select: { id: true, name: true, email: true } } },
+          orderBy: { createdAt: "asc" },
+        },
       },
       orderBy: { updatedAt: "desc" },
     });

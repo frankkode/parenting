@@ -236,16 +236,14 @@ export default function AllWishesPage({ currentUserId, isAdmin }: Props) {
               : "Review and respond to your co-parent's wishes. Rate your agreement and leave comments."}
           </p>
         </div>
-        {isAdmin && (
-          <Button onClick={() => setShowCreateForm(!showCreateForm)} size="sm">
-            <Plus className="h-4 w-4 mr-1" />
-            New Wish
-          </Button>
-        )}
+        <Button onClick={() => setShowCreateForm(!showCreateForm)} size="sm">
+          <Plus className="h-4 w-4 mr-1" />
+          New Wish
+        </Button>
       </div>
 
       {/* Create Wish Form */}
-      {showCreateForm && isAdmin && (
+      {showCreateForm && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center justify-between">
@@ -425,7 +423,7 @@ export default function AllWishesPage({ currentUserId, isAdmin }: Props) {
                             </span>
                           </Button>
                         )}
-                        {(isAdmin || isMyWish) && (
+                        {isAdmin && (
                           <Button
                             size="sm"
                             variant="ghost"

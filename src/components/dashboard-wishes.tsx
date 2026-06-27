@@ -8,8 +8,9 @@ import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import {
-  Heart, Loader2, User, Send, CheckCircle2, MessageSquare,
+  Heart, Loader2, User, Send, CheckCircle2, MessageSquare, Plus,
 } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -133,9 +134,16 @@ export default function DashboardWishes({ currentUserId }: Props) {
           <Heart className="w-4 h-4 text-rose-500" />
           Co-Parenting Wishes
         </h2>
-        <Badge variant="secondary" className="text-xs">
-          {wishes.length} {wishes.length === 1 ? "wish" : "wishes"}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="text-xs">
+            {wishes.length} {wishes.length === 1 ? "wish" : "wishes"}
+          </Badge>
+          <Link href="/wishes">
+            <Button size="sm" variant="ghost" className="h-7 px-2">
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="divide-y divide-gray-100">

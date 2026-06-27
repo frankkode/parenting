@@ -1032,17 +1032,17 @@ export default function AssessmentsPage() {
                             <span className="text-sm font-medium">Score:</span>
                             <span className={`text-lg font-bold ${
                               assessment.score !== null
-                                ? assessment.score >= 70
+                                ? assessment.score >= 7
                                   ? "text-emerald-600"
-                                  : assessment.score >= 40
+                                  : assessment.score >= 4
                                   ? "text-amber-600"
                                   : "text-red-600"
                                 : "text-muted-foreground"
                             }`}>
-                              {assessment.score !== null ? `${assessment.score}/100` : "N/A"}
+                              {assessment.score !== null ? `${assessment.score}/10` : "N/A"}
                             </span>
                             {assessment.score !== null && (
-                              <Progress value={assessment.score} className="flex-1 max-w-xs" />
+                              <Progress value={assessment.score * 10} className="flex-1 max-w-xs" />
                             )}
                           </div>
                           {assessment._count && (

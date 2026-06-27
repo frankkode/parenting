@@ -335,7 +335,7 @@ export default function AnalysisPage() {
                 <div className="text-center p-4 bg-muted rounded-lg">
                   <div className="text-2xl font-bold">
                     {data.assessments.averageScore !== null
-                      ? `${data.assessments.averageScore}/100`
+                      ? `${data.assessments.averageScore}/10`
                       : "--"}
                   </div>
                   <div className="text-xs text-muted-foreground">Average Score</div>
@@ -358,7 +358,7 @@ export default function AnalysisPage() {
                           </span>
                         </div>
                         <span className="text-sm font-bold">
-                          {score.score}/100
+                          {score.score}/10
                         </span>
                       </div>
                     ))}

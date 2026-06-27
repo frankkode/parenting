@@ -9,8 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import {
   Heart, Loader2, User, Send, Trash2, CheckCircle2,
-  AlertCircle, ThumbsUp,
+  AlertCircle, ThumbsUp, Plus, X,
 } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -56,6 +60,48 @@ export default function CoparentingWishes({ caseId, currentUserId, isAdmin }: Pr
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newWishContent, setNewWishContent] = useState("");
+  const [newWishCategory, setNewWishCategory] = useState("CHILDCARE_CAPACITY");
+  const [creatingWish, setCreatingWish] = useState(false);
+
+  const CATEGORIES = [
+    { value: "CHILDCARE_CAPACITY", label: "Childcare" },
+    { value: "FINANCIAL_CAPACITY", label: "Financial" },
+    { value: "EMOTIONAL_READINESS", label: "Emotional" },
+    { value: "CHILD_WELLBEING", label: "Wellbeing" },
+    { value: "LIVING_SITUATION", label: "Living" },
+    { value: "WORK_SITUATION", label: "Work" },
+  ];
+
+  const handleCreateWish = async () => {
+    if (!newWishContent.trim()) {
+      toast.error("Please enter wish content");
+      return;
+    }
+    setCreatingWish(true);
+    try {
+      const res = await fetch("/api/wishes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          familyCaseId: caseId,
+          content: newWishContent.trim(),
+          category: newWishCategory,
+          source: "MANUAL",
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to create");
+      toast.success("Wish created");
+      setShowCreate(false);
+      setNewWishContent("");
+      fetchWishes();
+    } catch {
+      toast.error("Failed to create wish");
+    } finally {
+      setCreatingWish(false);
+    }
+  };
 
   const fetchWishes = useCallback(async () => {
     setLoading(true);
@@ -134,15 +180,65 @@ export default function CoparentingWishes({ caseId, currentUserId, isAdmin }: Pr
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-          <Heart className="h-5 w-5 text-rose-500" />
-          Co-Parenting Wishes
-        </h2>
-        <p className="text-sm text-gray-500">
-          Each parent's wishes extracted from their statements. Rate your agreement and leave a comment.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <Heart className="h-5 w-5 text-rose-500" />
+            Co-Parenting Wishes
+          </h2>
+          <p className="text-sm text-gray-500">
+            Each parent's wishes extracted from their statements. Rate your agreement and leave a comment.
+          </p>
+        </div>
+        <Button onClick={() => setShowCreate(!showCreate)} size="sm">
+          <Plus className="h-4 w-4 mr-1" />
+          New Wish
+        </Button>
       </div>
+
+      {showCreate && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center justify-between">
+              <span>Add a Wish</span>
+              <Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="sm:col-span-2">
+                <Label className="text-sm font-medium">Wish Content</Label>
+                <Textarea
+                  placeholder="Enter wish..."
+                  value={newWishContent}
+                  onChange={(e) => setNewWishContent(e.target.value)}
+                  rows={2}
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Category</Label>
+                <Select value={newWishCategory} onValueChange={setNewWishCategory}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowCreate(false)}>Cancel</Button>
+              <Button size="sm" onClick={handleCreateWish} disabled={creatingWish}>
+                {creatingWish ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+                Create
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {wishes.length === 0 ? (
         <Card>
@@ -188,7 +284,7 @@ export default function CoparentingWishes({ caseId, currentUserId, isAdmin }: Pr
                         {formatDate(wish.createdAt)}
                       </CardDescription>
                     </div>
-                    {(isAdmin || isMyWish) && (
+                    {isAdmin && (
                       <Button
                         size="sm"
                         variant="ghost"

@@ -47,6 +47,7 @@ export default async function AgreementsPage() {
     include: {
       createdBy: { select: { id: true, name: true } },
       familyCase: { select: { id: true, title: true } },
+      signatures: { select: { id: true } },
     },
   });
 
@@ -110,10 +111,15 @@ export default async function AgreementsPage() {
                     )}
                   </p>
                 </div>
-                <div className="flex items-center gap-3 flex-shrink-0 ml-4">
+                <div className="flex items-center gap-3 shrink-0 ml-4">
                   <Badge variant="outline" className="text-xs">
                     v{agreement.version}
                   </Badge>
+                  {agreement.signatures.length > 0 && (
+                    <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-200">
+                      {agreement.signatures.length} signed
+                    </Badge>
+                  )}
                   <Badge variant={STATUS_VARIANTS[agreement.status] || "outline"}>
                     {STATUS_ICONS[agreement.status]}
                     {agreement.status.replace(/_/g, " ")}
