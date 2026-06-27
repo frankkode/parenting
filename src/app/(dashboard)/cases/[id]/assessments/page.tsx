@@ -93,6 +93,7 @@ export default function AssessmentsPage() {
   const [answers, setAnswers] = useState<Record<string, { value: string; score: number | null }>>({});
   const [skippedQuestions, setSkippedQuestions] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState("");
 
   // Question editing (admin only)
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
@@ -635,7 +636,7 @@ export default function AssessmentsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue={Object.keys(groupedQuestions)[0]}>
+            <Tabs value={activeTab || Object.keys(groupedQuestions)[0]} onValueChange={setActiveTab}>
               <TabsList className="w-full flex flex-wrap h-auto gap-1">
                 {Object.entries(groupedQuestions).map(([cat, qs]) => {
                   const stat = categoryStats.find((s) => s.cat === cat);
@@ -910,9 +911,11 @@ export default function AssessmentsPage() {
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   {categoryStats.map((s) => (
-                    <div
+                    <button
+                      type="button"
                       key={s.cat}
-                      className={`flex items-center justify-between rounded-md px-3 py-1.5 text-xs ${
+                      onClick={() => setActiveTab(s.cat)}
+                      className={`flex items-center justify-between rounded-md px-3 py-1.5 text-xs cursor-pointer transition-colors hover:ring-2 hover:ring-offset-1 hover:ring-current ${
                         s.complete
                           ? "bg-emerald-50 text-emerald-700"
                           : s.addressed > 0
@@ -926,7 +929,7 @@ export default function AssessmentsPage() {
                         {s.skipped > 0 && ` (${s.skipped} skipped)`}
                         {s.complete && " ✓"}
                       </span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
