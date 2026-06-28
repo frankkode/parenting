@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import CreateAgreementButton from "@/components/create-agreement-button";
+import DeleteAgreementButton from "@/components/delete-agreement-button";
 import {
   FileText,
   CheckCircle2,
@@ -131,6 +132,7 @@ export default async function AgreementsPage() {
                   <span className="text-xs text-gray-400">
                     {formatDate(agreement.createdAt)}
                   </span>
+                  {isAdmin && <DeleteAgreementButton agreementId={agreement.id} />}
                 </div>
               </Link>
             ))}

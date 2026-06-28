@@ -42,6 +42,7 @@ import {
   Download,
   PenLine,
   ShieldCheck,
+  Trash2,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
@@ -89,6 +90,7 @@ export default function AgreementsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [viewingAgreement, setViewingAgreement] = useState<Agreement | null>(null);
   const [accepting, setAccepting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Signature state
   const [signFullName, setSignFullName] = useState("");
@@ -191,6 +193,22 @@ export default function AgreementsPage() {
       toast.error("Failed to update agreement");
     } finally {
       setAccepting(false);
+    }
+  };
+
+  const handleDeleteAgreement = async (agreementId: string) => {
+    if (!confirm("Delete this agreement? This will also remove all signatures. This cannot be undone.")) return;
+    setDeletingId(agreementId);
+    try {
+      const res = await fetch(`/api/agreements/${agreementId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete");
+      toast.success("Agreement deleted");
+      if (viewingAgreement?.id === agreementId) setViewingAgreement(null);
+      fetchAgreements();
+    } catch {
+      toast.error("Failed to delete agreement");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -631,6 +649,23 @@ export default function AgreementsPage() {
               </div>
 
               <DialogFooter className="gap-2 flex-wrap">
+                {/* Admin delete */}
+                {isAdmin && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDeleteAgreement(viewingAgreement.id)}
+                    disabled={deletingId === viewingAgreement.id}
+                    className="gap-2"
+                  >
+                    {deletingId === viewingAgreement.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                    Delete
+                  </Button>
+                )}
                 {/* PDF download - only when both parents have signed */}
                 {allPartiesHaveSigned(viewingAgreement) && (
                   <Button
@@ -747,6 +782,23 @@ export default function AgreementsPage() {
                 </Badge>
               )}
               {getStatusBadge(agreement.status)}
+              {isAdmin && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteAgreement(agreement.id);
+                  }}
+                  disabled={deletingId === agreement.id}
+                  className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                  title="Delete agreement"
+                >
+                  {deletingId === agreement.id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </CardHeader>
