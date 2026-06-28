@@ -78,6 +78,29 @@ export default function MessagesPage() {
     fetchMessages();
   }, [fetchMessages]);
 
+  // Auto-mark received messages as read when viewing the conversation
+  useEffect(() => {
+    if (!currentUserId || messages.length === 0) return;
+    const unreadReceivedIds = messages
+      .filter((m) => m.recipient?.id === currentUserId && !m.isRead)
+      .map((m) => m.id);
+    if (unreadReceivedIds.length === 0) return;
+    fetch("/api/messages/mark-read", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messageIds: unreadReceivedIds }),
+    })
+      .then(() => {
+        // Update local state so badges reflect immediately
+        setMessages((prev) =>
+          prev.map((m) =>
+            unreadReceivedIds.includes(m.id) ? { ...m, isRead: true } : m
+          )
+        );
+      })
+      .catch(() => {});
+  }, [messages, currentUserId]);
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
