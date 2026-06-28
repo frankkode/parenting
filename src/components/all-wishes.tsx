@@ -34,7 +34,7 @@ interface Wish {
   authorId: string;
   createdAt: string;
   author: { id: string; name: string | null; email: string };
-  familyCase: { id: string; title: string };
+  familyCase: { id: string; title: string; parentAId: string; parentBId: string };
   responses: WishResponse[];
 }
 
@@ -381,7 +381,7 @@ export default function AllWishesPage({ currentUserId, isAdmin }: Props) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => router.push(`/cases/${caseId}/analysis`)}
+                      onClick={() => router.push(`/cases/${caseId}`)}
                     >
                       <ExternalLink className="h-4 w-4 mr-1" />
                       View Case
@@ -569,12 +569,35 @@ function WishCard({
     return "bg-red-50 border-red-200";
   };
 
-  // Card styling based on ownership
+  // Determine which parent: parentA = rose, parentB = indigo, other = neutral
+  const isParentA = wish.authorId === wish.familyCase.parentAId;
+  const isParentB = wish.authorId === wish.familyCase.parentBId;
+
+  // Card styling — distinct colors per parent
   const cardClass = isOwn
-    ? "border-blue-100 bg-blue-50/40 hover:border-blue-200"
+    ? isParentA
+      ? "border-rose-100 bg-rose-50/50 hover:border-rose-200"
+      : isParentB
+      ? "border-indigo-100 bg-indigo-50/50 hover:border-indigo-200"
+      : "border-blue-100 bg-blue-50/40 hover:border-blue-200"
     : !hasResponded
-    ? "border-amber-200 bg-amber-50/40 hover:border-amber-300 ring-1 ring-amber-200/50"
+    ? isParentA
+      ? "border-rose-300 bg-rose-100/60 hover:border-rose-400 ring-2 ring-rose-200/60"
+      : isParentB
+      ? "border-indigo-300 bg-indigo-100/60 hover:border-indigo-400 ring-2 ring-indigo-200/60"
+      : "border-amber-200 bg-amber-50/40 hover:border-amber-300 ring-1 ring-amber-200/50"
+    : isParentA
+    ? "border-rose-100 bg-rose-50/30 hover:border-rose-200"
+    : isParentB
+    ? "border-indigo-100 bg-indigo-50/30 hover:border-indigo-200"
     : "border-emerald-100 bg-emerald-50/40 hover:border-emerald-200";
+
+  // Parent label color
+  const parentLabelClass = isParentA
+    ? "text-rose-700 bg-rose-100"
+    : isParentB
+    ? "text-indigo-700 bg-indigo-100"
+    : "";
 
   return (
     <div className={cn("border rounded-xl p-4 transition-all", cardClass)}>
@@ -597,8 +620,14 @@ function WishCard({
           <p className="text-sm font-semibold text-gray-900">
             {wish.content}
           </p>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {isOwn ? "Your wish" : `From ${wish.author.name || wish.author.email}`} &middot; {formatDate(wish.createdAt)}
+          <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
+            {isOwn ? "Your wish" : `From ${wish.author.name || wish.author.email}`}
+            {parentLabelClass && (
+              <Badge variant="outline" className={cn("text-[10px] py-0 px-1.5 border-0", parentLabelClass)}>
+                {isParentA ? "Parent A" : isParentB ? "Parent B" : ""}
+              </Badge>
+            )}
+            &middot; {formatDate(wish.createdAt)}
           </p>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">

@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         author: { select: { id: true, name: true, email: true } },
-        familyCase: { select: { id: true, title: true } },
+        familyCase: { select: { id: true, title: true, parentAId: true, parentBId: true } },
         responses: {
           include: {
             user: { select: { id: true, name: true, email: true } },
