@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import CreateEventDialog from "@/components/create-event-dialog";
+import DeleteEventButton from "@/components/delete-event-button";
 import { Calendar as CalendarIcon, Clock, User } from "lucide-react";
 
 const EVENT_COLORS: Record<string, string> = {
@@ -150,6 +151,7 @@ export default async function CalendarPage() {
                       {event.user.name}
                     </span>
                   )}
+                  {isAdmin && <DeleteEventButton eventId={event.id} />}
                 </div>
               </Link>
             ))}
