@@ -15,9 +15,15 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    // Cascade delete will remove WishResponses too
-    const deleted = await prisma.coparentingWish.deleteMany({
+    // Only clear responses — don't delete the wishes themselves
+    const wishes = await prisma.coparentingWish.findMany({
       where: { familyCaseId: caseId },
+      select: { id: true },
+    });
+    const wishIds = wishes.map((w) => w.id);
+
+    const deleted = await prisma.wishResponse.deleteMany({
+      where: { wishId: { in: wishIds } },
     });
 
     return NextResponse.json({ deletedCount: deleted.count });
