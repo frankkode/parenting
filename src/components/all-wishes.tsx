@@ -394,7 +394,7 @@ export default function AllWishesPage({ currentUserId, isAdmin }: Props) {
                   /* Two-column layout for parents: My Wishes | Needs My Response */
                   <div className="grid gap-6 lg:grid-cols-2">
                     {/* Left: My Wishes */}
-                    <div>
+                    <div className="bg-blue-50/40 rounded-xl p-4 border border-blue-100">
                       <div className="flex items-center gap-2 mb-3">
                         <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
                           <User className="h-4 w-4 text-blue-600" />
@@ -406,7 +406,7 @@ export default function AllWishesPage({ currentUserId, isAdmin }: Props) {
                         <Badge variant="secondary" className="ml-auto text-xs">{myWishes.length}</Badge>
                       </div>
                       {myWishes.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-8 text-center border-2 border-dashed border-blue-100 rounded-xl bg-blue-50/30">
+                        <div className="flex flex-col items-center justify-center py-8 text-center border-2 border-dashed border-blue-100 rounded-xl bg-white/60">
                           <Heart className="h-8 w-8 text-blue-200 mb-2" />
                           <p className="text-sm text-blue-400 font-medium">No wishes yet</p>
                           <p className="text-xs text-blue-300 mt-0.5">Your wishes appear here</p>
@@ -438,7 +438,7 @@ export default function AllWishesPage({ currentUserId, isAdmin }: Props) {
                     </div>
 
                     {/* Right: Needs My Response */}
-                    <div>
+                    <div className="bg-amber-50/50 rounded-xl p-4 border border-amber-200">
                       <div className="flex items-center gap-2 mb-3">
                         <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
                           <AlertCircle className="h-4 w-4 text-amber-600" />
@@ -450,7 +450,7 @@ export default function AllWishesPage({ currentUserId, isAdmin }: Props) {
                         <Badge variant="warning" className="ml-auto text-xs">{counterWishes.length}</Badge>
                       </div>
                       {counterWishes.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-8 text-center border-2 border-dashed border-amber-100 rounded-xl bg-amber-50/30">
+                        <div className="flex flex-col items-center justify-center py-8 text-center border-2 border-dashed border-amber-100 rounded-xl bg-white/60">
                           <CheckCircle2 className="h-8 w-8 text-amber-200 mb-2" />
                           <p className="text-sm text-amber-400 font-medium">All caught up</p>
                           <p className="text-xs text-amber-300 mt-0.5">No pending wishes to review</p>
