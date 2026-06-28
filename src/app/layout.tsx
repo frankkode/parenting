@@ -10,15 +10,6 @@ export const metadata: Metadata = {
   title: "CoParent - Co-Parenting Coordination Platform",
   description:
     "Helping separated parents coordinate, communicate, and prioritize their children's wellbeing.",
-  icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "48x48" },
-      { url: "/favicon-96x96.png", type: "image/png", sizes: "96x96" },
-      { url: "/favicon.svg", type: "image/svg+xml" },
-    ],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
-  },
-  manifest: "/site.webmanifest",
 };
 
 export default function RootLayout({
@@ -28,6 +19,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="shortcut icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <meta name="apple-mobile-web-app-title" content="Barn" />
+        <link rel="manifest" href="/site.webmanifest" />
+      </head>
       <body className={inter.className} suppressHydrationWarning>
         <Providers>{children}</Providers>
         <Toaster position="top-right" richColors />
