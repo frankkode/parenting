@@ -94,6 +94,11 @@ export default function AgreementsPage() {
   const [signFullName, setSignFullName] = useState("");
   const [signing, setSigning] = useState(false);
 
+  // Rename state
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [renameTitle, setRenameTitle] = useState("");
+  const [renaming, setRenaming] = useState(false);
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -220,6 +225,31 @@ export default function AgreementsPage() {
       toast.error(error.message || "Failed to sign agreement");
     } finally {
       setSigning(false);
+    }
+  };
+
+  const handleRename = async (agreementId: string) => {
+    if (!renameTitle.trim()) {
+      toast.error("Title cannot be empty");
+      return;
+    }
+    try {
+      setRenaming(true);
+      const res = await fetch(`/api/agreements/${agreementId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: renameTitle.trim() }),
+      });
+      if (!res.ok) throw new Error("Failed to rename");
+      toast.success("Agreement renamed");
+      setEditingTitle(false);
+      fetchAgreements();
+      const updated = await res.json();
+      setViewingAgreement(updated);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to rename");
+    } finally {
+      setRenaming(false);
     }
   };
 
@@ -424,6 +454,7 @@ export default function AgreementsPage() {
           if (!open) {
             setViewingAgreement(null);
             setSignFullName("");
+            setEditingTitle(false);
           }
         }}
       >
@@ -433,7 +464,50 @@ export default function AgreementsPage() {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <FileText className="h-5 w-5" />
-                  {viewingAgreement.title}
+                  {editingTitle ? (
+                    <div className="flex items-center gap-2 flex-1">
+                      <Input
+                        value={renameTitle}
+                        onChange={(e) => setRenameTitle(e.target.value)}
+                        className="h-8 text-base"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleRename(viewingAgreement.id);
+                          if (e.key === "Escape") setEditingTitle(false);
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => handleRename(viewingAgreement.id)}
+                        disabled={renaming || !renameTitle.trim()}
+                      >
+                        {renaming ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setEditingTitle(false)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      {viewingAgreement.title}
+                      {isAdmin && (
+                        <button
+                          onClick={() => {
+                            setRenameTitle(viewingAgreement.title);
+                            setEditingTitle(true);
+                          }}
+                          className="inline-flex items-center justify-center h-6 w-6 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                          title="Rename agreement"
+                        >
+                          <PenLine className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </>
+                  )}
                 </DialogTitle>
                 <DialogDescription>
                   <div className="flex items-center gap-3 mt-1 flex-wrap">

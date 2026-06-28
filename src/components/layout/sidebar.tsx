@@ -67,7 +67,7 @@ export function Sidebar({ role, userId, onNavClick }: SidebarProps) {
   const isElevated = isAdmin || isMediator;
   const isParent = role === "PARENT";
 
-  // Fetch pending counts for parents
+  // Fetch pending counts for parents — re-fetch on navigation
   useEffect(() => {
     if (!isParent || !userId) return;
     fetch("/api/notifications/pending-counts")
@@ -76,7 +76,7 @@ export function Sidebar({ role, userId, onNavClick }: SidebarProps) {
         if (!data.error) setCounts(data);
       })
       .catch(() => {});
-  }, [isParent, userId]);
+  }, [isParent, userId, pathname]);
 
   const getBadge = (href: string) => {
     if (!isParent) return null;
