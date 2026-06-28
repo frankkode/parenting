@@ -12,9 +12,11 @@ export default async function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm shadow-emerald-200">
-                <Heart className="w-5 h-5 text-white" />
-              </div>
+              <img
+                src="/logob.png"
+                alt="CoParent Logo"
+                className="w-9 h-9 rounded-xl object-contain shadow-sm shadow-emerald-200"
+              />
               <span className="font-bold text-xl text-gray-900 tracking-tight">CoParent</span>
             </div>
             <div className="flex items-center gap-3">
@@ -275,9 +277,11 @@ export default async function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                <Heart className="w-4 h-4 text-white" />
-              </div>
+              <img
+                src="/logob.png"
+                alt="CoParent Logo"
+                className="w-7 h-7 rounded-lg object-contain"
+              />
               <span className="text-sm text-gray-500">CoParent &mdash; Building bridges for families</span>
             </div>
             <p className="text-sm text-gray-400">

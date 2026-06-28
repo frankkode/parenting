@@ -101,9 +101,11 @@ export function Sidebar({ role, userId, onNavClick }: SidebarProps) {
     >
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 h-16 border-b border-gray-200">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center flex-shrink-0">
-          <Heart className="w-5 h-5 text-white" />
-        </div>
+        <img
+          src="/logob.png"
+          alt="CoParent Logo"
+          className="w-8 h-8 rounded-lg object-contain flex-shrink-0"
+        />
         {!collapsed && (
           <span className="font-semibold text-lg text-gray-900 whitespace-nowrap">
             CoParent
