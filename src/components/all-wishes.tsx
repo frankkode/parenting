@@ -392,7 +392,7 @@ export default function AllWishesPage({ currentUserId, isAdmin }: Props) {
               <CardContent className="p-4 sm:p-6">
                 {showSplit ? (
                   /* Two-column layout for parents: My Wishes | Needs My Response */
-                  <div className="grid gap-6 lg:grid-cols-2">
+                  <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2">
                     {/* Left: My Wishes */}
                     <div className="bg-blue-50/40 rounded-xl p-4 border border-blue-100">
                       <div className="flex items-center gap-2 mb-3">
