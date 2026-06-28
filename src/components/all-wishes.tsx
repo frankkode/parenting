@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import {
   Heart, Loader2, User, Send, CheckCircle2, MessageSquare,
-  Trash2, ExternalLink, Plus, X,
+  Trash2, ExternalLink, Plus, X, RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, formatDate } from "@/lib/utils";
@@ -85,6 +85,9 @@ export default function AllWishesPage({ currentUserId, isAdmin }: Props) {
   const [newContent, setNewContent] = useState("");
   const [newCategory, setNewCategory] = useState("CHILDCARE_CAPACITY");
   const [creatingWish, setCreatingWish] = useState(false);
+
+  // Reset wishes state
+  const [resettingCaseId, setResettingCaseId] = useState<string | null>(null);
 
   const fetchWishes = useCallback(async () => {
     setLoading(true);
@@ -187,6 +190,22 @@ export default function AllWishesPage({ currentUserId, isAdmin }: Props) {
       fetchWishes();
     } catch {
       toast.error("Failed to delete wish");
+    }
+  };
+
+  const handleResetWishes = async (caseId: string) => {
+    if (!confirm("Are you sure? This will delete ALL wishes and responses for this case. This cannot be undone.")) return;
+    setResettingCaseId(caseId);
+    try {
+      const res = await fetch(`/api/cases/${caseId}/reset-wishes`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to reset");
+      const data = await res.json();
+      toast.success(`${data.deletedCount} wishes deleted`);
+      fetchWishes();
+    } catch {
+      toast.error("Failed to reset wishes");
+    } finally {
+      setResettingCaseId(null);
     }
   };
 
@@ -356,14 +375,32 @@ export default function AllWishesPage({ currentUserId, isAdmin }: Props) {
                     {group.wishes.length} {group.wishes.length === 1 ? "wish" : "wishes"}
                   </CardDescription>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => router.push(`/cases/${caseId}/analysis`)}
-                >
-                  <ExternalLink className="h-4 w-4 mr-1" />
-                  View Case
-                </Button>
+                <div className="flex items-center gap-2">
+                  {isAdmin && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-500 hover:text-red-600 hover:border-red-200"
+                      onClick={() => handleResetWishes(caseId)}
+                      disabled={resettingCaseId === caseId}
+                    >
+                      {resettingCaseId === caseId ? (
+                        <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                      ) : (
+                        <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                      )}
+                      Reset All
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => router.push(`/cases/${caseId}/analysis`)}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    View Case
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">

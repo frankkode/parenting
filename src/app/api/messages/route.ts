@@ -2,6 +2,42 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 
+export async function DELETE(request: NextRequest) {
+  try {
+    const user = await requireAuth();
+    const authUser = user as { id: string; role: string };
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ error: "id is required" }, { status: 400 });
+    }
+
+    const message = await prisma.message.findUnique({
+      where: { id },
+      select: { senderId: true },
+    });
+
+    if (!message) {
+      return NextResponse.json({ error: "Message not found" }, { status: 404 });
+    }
+
+    const isStaff = authUser.role === "ADMIN" || authUser.role === "MEDIATOR";
+    if (!isStaff && message.senderId !== authUser.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    await prisma.message.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("[MESSAGES_DELETE]", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth();

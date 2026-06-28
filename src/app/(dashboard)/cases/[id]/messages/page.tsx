@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   CheckCheck,
   User,
+  Trash2,
 } from "lucide-react";
 import { formatDateTime, formatRelativeTime } from "@/lib/utils";
 import { toast } from "sonner";
@@ -50,13 +51,16 @@ export default function MessagesPage() {
   const params = useParams();
   const caseId = params.id as string;
   const { data: session } = useSession();
-  const currentUserId = (session?.user as { id: string })?.id || "";
+  const sessionUser = session?.user as { id: string; role: string } | undefined;
+  const currentUserId = sessionUser?.id || "";
+  const isAdmin = sessionUser?.role === "ADMIN" || sessionUser?.role === "MEDIATOR";
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [newMessage, setNewMessage] = useState("");
   const [newSubject, setNewSubject] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const fetchMessages = useCallback(async () => {
@@ -144,6 +148,21 @@ export default function MessagesPage() {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!confirm("Delete this message? This cannot be undone.")) return;
+    setDeletingId(messageId);
+    try {
+      const res = await fetch(`/api/messages?id=${messageId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete");
+      toast.success("Message deleted");
+      fetchMessages();
+    } catch {
+      toast.error("Failed to delete message");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -311,6 +330,20 @@ export default function MessagesPage() {
                         </Badge>
                         {message.isRead && isOwn && (
                           <CheckCheck className="h-3 w-3 text-blue-500" />
+                        )}
+                        {isAdmin && (
+                          <button
+                            onClick={() => handleDeleteMessage(message.id)}
+                            disabled={deletingId === message.id}
+                            className="text-gray-400 hover:text-red-500 transition-colors"
+                            title="Delete message"
+                          >
+                            {deletingId === message.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3 w-3" />
+                            )}
+                          </button>
                         )}
                       </div>
                     </div>
